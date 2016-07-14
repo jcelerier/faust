@@ -210,7 +210,33 @@ class WASMInstVisitor : public TextInstVisitor {
     
         virtual void visit(ForLoopInst* inst)
         {
-
+            // Don't generate empty loops...
+            if (inst->fCode->size() == 0) return;
+            
+            // Compile init statement
+            inst->fInit->accept(this);
+            
+            *fOut << "(for $break $top";
+            
+                fTab++;
+                tab(fTab, *fOut);
+                
+                // Compile test statement
+                *fOut << "(br_if $break "; inst->fEnd->accept(this); *fOut << ")";
+                tab(fTab, *fOut);
+                
+                // Compile block
+                inst->fCode->accept(this);
+                
+                // Compile increment statement
+                inst->fIncrement->accept(this);
+                
+                // Branch on loop
+                *fOut << "(br $top)";
+                fTab--;
+                tab(fTab, *fOut);
+            
+            *fOut << ")";
         }
 
 };
