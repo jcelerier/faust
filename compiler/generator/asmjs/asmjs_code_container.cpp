@@ -317,11 +317,17 @@ void ASMJAVAScriptCodeContainer::produceClass()
    
     tab(n, *fOut); *fOut << "}" << endl;
     
+    // Pure JS code
+    generateJAVAScriptHelpers(n);
+}
+
+void ASMJAVAScriptCodeContainer::generateJAVAScriptHelpers(int n)
+{
     // User interface : prepare the JSON string...
     JSONInstVisitor json_visitor(fNumInputs, fNumOutputs);
     generateUserInterface(&json_visitor);
     generateMetaData(&json_visitor);
-     
+    
     // Generate JSON and getDSPSize
     tab(n, *fOut); *fOut << "function getSize" << fKlassName << "() {";
     tab(n+1, *fOut);
@@ -332,22 +338,22 @@ void ASMJAVAScriptCodeContainer::produceClass()
     
     // Fields to path
     tab(n, *fOut); *fOut << "function getPathTable" << fKlassName << "() {";
-    tab(n+1, *fOut); *fOut << "var pathTable = [];"; 
+    tab(n+1, *fOut); *fOut << "var pathTable = [];";
     map <string, string>::iterator it;
     map <string, pair<int, Typed::VarType> >& fieldTable = gGlobal->gASMJSVisitor->getFieldTable();
     for (it = json_visitor.fPathTable.begin(); it != json_visitor.fPathTable.end(); it++) {
         pair<int, Typed::VarType> tmp = fieldTable[(*it).first];
-        tab(n+1, *fOut); *fOut << "pathTable[\"" << (*it).second << "\"] = " << tmp.first << ";"; 
+        tab(n+1, *fOut); *fOut << "pathTable[\"" << (*it).second << "\"] = " << tmp.first << ";";
     }
-    tab(n+1, *fOut); *fOut << "return pathTable;"; 
+    tab(n+1, *fOut); *fOut << "return pathTable;";
     tab(n, *fOut); *fOut << "}";
     
-    // Generate JSON 
+    // Generate JSON
     tab(n, *fOut);
     tab(n, *fOut); *fOut << "function getJSON" << fKlassName << "() {";
-        tab(n+1, *fOut);
-        *fOut << "return \""; *fOut << json_visitor.JSON(true); *fOut << "\";";
-        printlines(n+1, fUICode, *fOut);
+    tab(n+1, *fOut);
+    *fOut << "return \""; *fOut << json_visitor.JSON(true); *fOut << "\";";
+    printlines(n+1, fUICode, *fOut);
     tab(n, *fOut); *fOut << "}";
     
     // Metadata declaration
@@ -424,3 +430,4 @@ void ASMJAVAScriptVectorCodeContainer::generateCompute(int n)
     
     tab(n+1, *fOut); *fOut << "}";
 }
+

@@ -33,6 +33,8 @@ class ASMJAVAScriptCodeContainer : public virtual CodeContainer {
     protected:
 
         std::ostream* fOut;
+    
+        void generateJAVAScriptHelpers(int n);
  
     public:
 

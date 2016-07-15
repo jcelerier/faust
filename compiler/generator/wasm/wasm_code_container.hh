@@ -34,6 +34,8 @@ class WASMCodeContainer : public virtual CodeContainer {
         std::ostream* fOut;
         
         void produceInfoFunctions(int tabs, const string& classname, bool isvirtual);
+    
+        void generateJAVAScriptHelpers(int n);
 
     public:
 

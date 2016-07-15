@@ -60,12 +60,12 @@ struct BinOp {
     std::string fWASMInt;
     std::string fWASMFloat;
 
-    comp 		fCompute;
-    pred		fLeftNeutral;
-    pred		fRightNeutral;
-    pred        fLeftAbsorbing;
-    pred        fRightAbsorbing;
-    int			fPriority;
+    comp fCompute;
+    pred fLeftNeutral;
+    pred fRightNeutral;
+    pred fLeftAbsorbing;
+    pred fRightAbsorbing;
+    int fPriority;
 	
     BinOp(const std::string& name,
         const std::string& name_vec,
@@ -101,9 +101,6 @@ struct BinOp {
     bool isRightAbsorbing(const Node& a)    { return fRightAbsorbing(a);    }
 };
 
-extern BinOp* gBinOpTable[];
-extern BinOp* gBinOpLateqTable[];
-
 inline bool isBoolOpcode(int o)
 {
     return (o >= kGT && o <= kNE);
@@ -118,5 +115,8 @@ inline bool isLogicalOpcode(int o)
 {
     return (o >= kAND && o <= kXOR);
 }
+
+extern BinOp* gBinOpTable[];
+extern BinOp* gBinOpLateqTable[];
 
 #endif

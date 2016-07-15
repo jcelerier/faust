@@ -189,6 +189,9 @@ void WASMCodeContainer::produceClass()
     
     tab(n, *fOut); *fOut << ")";
     tab(n, *fOut);
+    
+    // Pure JS code
+    generateJAVAScriptHelpers(n);
 }
 
 void WASMCodeContainer::produceInfoFunctions(int tabs, const string& classname, bool isvirtual)
@@ -207,4 +210,63 @@ void WASMScalarCodeContainer::generateCompute(int n)
     loop->accept(gGlobal->gWASMVisitor);
 
     tab(n+1, *fOut); *fOut << ")";
+}
+
+void WASMCodeContainer::generateJAVAScriptHelpers(int n)
+{
+    // User interface : prepare the JSON string...
+    JSONInstVisitor json_visitor(fNumInputs, fNumOutputs);
+    generateUserInterface(&json_visitor);
+    generateMetaData(&json_visitor);
+    
+    // Generate JSON and getDSPSize
+    tab(n, *fOut); *fOut << "function getSize" << fKlassName << "() {";
+    tab(n+1, *fOut);
+    *fOut << "return " << gGlobal->gWASMVisitor->getStructSize() << ";";
+    printlines(n+1, fUICode, *fOut);
+    tab(n, *fOut); *fOut << "}";
+    tab(n, *fOut);
+    
+    // TODO
+    
+    /*
+    // Fields to path
+    tab(n, *fOut); *fOut << "function getPathTable" << fKlassName << "() {";
+    tab(n+1, *fOut); *fOut << "var pathTable = [];";
+    map <string, string>::iterator it;
+    map <string, pair<int, Typed::VarType> >& fieldTable = gGlobal->gWASMVisitor->getFieldTable();
+    for (it = json_visitor.fPathTable.begin(); it != json_visitor.fPathTable.end(); it++) {
+        pair<int, Typed::VarType> tmp = fieldTable[(*it).first];
+        tab(n+1, *fOut); *fOut << "pathTable[\"" << (*it).second << "\"] = " << tmp.first << ";";
+    }
+    tab(n+1, *fOut); *fOut << "return pathTable;";
+    tab(n, *fOut); *fOut << "}";
+    */
+    
+    // Generate JSON
+    tab(n, *fOut);
+    tab(n, *fOut); *fOut << "function getJSON" << fKlassName << "() {";
+    tab(n+1, *fOut);
+    *fOut << "return \""; *fOut << json_visitor.JSON(true); *fOut << "\";";
+    printlines(n+1, fUICode, *fOut);
+    tab(n, *fOut); *fOut << "}";
+    
+    // Metadata declaration
+    tab(n, *fOut);
+    tab(n, *fOut); *fOut << "function metadata" << fKlassName << "(m) {";
+    for (map<Tree, set<Tree> >::iterator i = gGlobal->gMetaDataSet.begin(); i != gGlobal->gMetaDataSet.end(); i++) {
+        if (i->first != tree("author")) {
+            tab(n+1, *fOut); *fOut << "m.declare(\"" << *(i->first) << "\", " << **(i->second.begin()) << ");";
+        } else {
+            for (set<Tree>::iterator j = i->second.begin(); j != i->second.end(); j++) {
+                if (j == i->second.begin()) {
+                    tab(n+1, *fOut); *fOut << "m.declare(\"" << *(i->first) << "\", " << **j << ");" ;
+                } else {
+                    tab(n+1, *fOut); *fOut << "m.declare(\"" << "contributor" << "\", " << **j << ");";
+                }
+            }
+        }
+    }
+    
+    tab(n, *fOut); *fOut << "}" << endl << endl;
 }
