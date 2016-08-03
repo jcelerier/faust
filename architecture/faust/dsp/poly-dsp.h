@@ -440,6 +440,13 @@ class mydsp_poly : public dsp, public midi {
             }
         }
     
+        void instanceDefaultUserInterface()
+        {
+            for (int i = 0; i < fPolyphony; i++) {
+                fVoiceTable[i]->instanceDefaultUserInterface();
+            }
+        }
+    
         void instanceClear()
         {
             for (int i = 0; i < fPolyphony; i++) {
