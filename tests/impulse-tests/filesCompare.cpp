@@ -17,49 +17,86 @@
 #include <cfenv>
 #include <cmath>
 #include <cfloat>
+#include <stdlib.h>
 
 #include "faust/gui/console.h"
 #include "faust/dsp/dsp.h"
 #include "faust/gui/FUI.h"
 #include "faust/audio/channels.h"
 
+static int gResult = 0;
+static int gError = 0;
 
-void compareFiles(std::istream* in1, std::istream* in2)
+void compareFiles(std::istream* in1, std::istream* in2, float tolerance)
 {
     std::string line1, line2, dummy;
+    int input1, input2, output1, output2, count1, count2;
     
-    getline(*in1, line1);
-    getline(*in2, line2);
-    
-    getline(*in1, line1);
-    getline(*in2, line2);
-
-    getline(*in1, line1);
-    getline(*in2, line2);
-    
-    //std::cout << "line1 " << line1 << std::endl;
-    //std::cout << "line2 " << line2 << std::endl;
-  
-    std::stringstream l1reader(line1);
-    std::stringstream l2reader(line2);
-    
-    l1reader >> dummy; l1reader >> dummy;
-    l2reader >> dummy; l2reader >> dummy;
-    
-    int cout1, cout2;
-    
-    l1reader >> cout1;
-    l2reader >> cout2;
-    
-    //std::cout << "cout1 " << cout1 << std::endl;
-    //std::cout << "cout2 " << cout2 << std::endl;
-    
-    if (cout1 != cout2) {
-        std::cerr << "cout1 : " << cout1 << "different from : " << cout2 << std::endl;
-        exit(1);
+    // Read inputs
+    {
+        getline(*in1, line1);
+        getline(*in2, line2);
+        
+        std::stringstream l1reader(line1);
+        std::stringstream l2reader(line2);
+        
+        l1reader >> dummy; l1reader >> dummy;
+        l2reader >> dummy; l2reader >> dummy;
+        
+        l1reader >> input1;
+        l2reader >> input2;
+        
+        if (input1 != input2) {
+            std::cerr << "input1 : " << input1 << "different from : " << input2 << std::endl;
+            gResult = 1;
+            exit(gResult);
+        }
+    }
+        
+    // Read outputs
+    {
+        getline(*in1, line1);
+        getline(*in2, line2);
+        
+        std::stringstream l1reader(line1);
+        std::stringstream l2reader(line2);
+        
+        l1reader >> dummy; l1reader >> dummy;
+        l2reader >> dummy; l2reader >> dummy;
+        
+        l1reader >> output1;
+        l2reader >> output2;
+        
+        if (output1 != output2) {
+            std::cerr << "output1 : " << output1 << "different from : " << output2 << std::endl;
+            gResult = 1;
+            exit(gResult);
+        }
     }
     
-    for (int i = 0; i < cout1; i++) {
+    // Read count
+    {
+        getline(*in1, line1);
+        getline(*in2, line2);
+        
+        std::stringstream l1reader(line1);
+        std::stringstream l2reader(line2);
+        
+        l1reader >> dummy; l1reader >> dummy;
+        l2reader >> dummy; l2reader >> dummy;
+        
+        l1reader >> count1;
+        l2reader >> count2;
+        
+        if (count1 != count2) {
+            std::cerr << "count1 : " << count1 << "different from : " << count2 << std::endl;
+            gResult = 1;
+            exit(gResult);
+        }
+    }
+    
+    // Compare samples
+    for (int i = 0; i < count1; i++) {
         double sample1, sample2;
         
         getline(*in1, line1);
@@ -71,12 +108,20 @@ void compareFiles(std::istream* in1, std::istream* in2)
         l1reader >> dummy; l1reader >> dummy;
         l2reader >> dummy; l2reader >> dummy;
         
-        l1reader >> sample1;
-        l2reader >> sample2;
+        for (int j = 0; j < output1; j++) {
         
-        if (fabs(sample1 - sample2) > 2e-06) {
-            std::cerr << "line : " << i << " sample1 : " << sample1 << " different from sample2 : " << sample2 << std::endl;
-            exit(1);
+            l1reader >> sample1;
+            l2reader >> sample2;
+            double delta = fabs(sample1 - sample2);
+            
+            if (delta > tolerance) {
+                std::cerr << "line : " << i << " output : " << j << " sample1 : " << sample1 << " different from sample2 : " << sample2 << " delta : " << delta << std::endl;
+                gResult = 1;
+                if (gError++ > 10) {
+                    std::cerr << "Too much errors, stops..." << std::endl;
+                    exit(gResult);
+                }
+            }
         }
     }
 }
@@ -85,6 +130,10 @@ int main(int argc, char* argv[])
 {
     std::ifstream reader1(argv[1]);
     std::ifstream reader2(argv[2]);
-    compareFiles(&reader1, &reader2);
-    exit(0);
+    float tolerance = 2e-06;
+    if (argc == 4) {
+        tolerance = strtod(argv[3], NULL);
+    }
+    compareFiles(&reader1, &reader2, tolerance);
+    exit(gResult);
 }
