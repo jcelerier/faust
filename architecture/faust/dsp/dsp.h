@@ -50,9 +50,9 @@
 class UI;
 struct Meta;
 
-//----------------------------------------------------------------
-//  Signal processor definition
-//----------------------------------------------------------------
+/**
+* Signal processor definition
+*/
 
 class dsp {
 
@@ -61,24 +61,80 @@ class dsp {
         dsp() {}
         virtual ~dsp() {}
 
+        /* Return instance number of audio inputs */
         virtual int getNumInputs() = 0;
+    
+        /* Return instance number of audio outputs */
         virtual int getNumOutputs() = 0;
+    
+        /**
+         * Trigger the UI* parameter with instance specific calls
+         * to 'addBtton', 'addVerticalSlider'... in order to build the UI.
+         *
+         * @param ui_interface - the UI* user interface builder
+         */
         virtual void buildUserInterface(UI* ui_interface) = 0;
+    
+        /* Returns the sample rate currently used by the instance */
         virtual int getSampleRate() = 0;
+    
+        /** Global init, calls the following methods :
+         * - static class 'classInit' : static table initialisation
+         * - 'instanceInit' : constants and instance table initialisation
+         * - 'instanceDefaultUserInterface' : set default control parameters values
+         * - 'instanceClear' : init instance state (delay lines...)
+         */
         virtual void init(int samplingRate) = 0;
+    
+        /* Instance constants and tables initialisation */
         virtual void instanceInit(int samplingRate) = 0;
+    
+        /* Set default control parameters values */
         virtual void instanceDefaultUserInterface() = 0;
+    
+        /* Init instance state (delay lines...) */
         virtual void instanceClear() = 0;
+    
+        /**  
+         * Return a clone of the instance.
+         *
+         * @return a copy of the instance on success, otherwise a null pointer.
+         */
         virtual dsp* clone() = 0;
+    
+        /**
+         * Trigger the Meta* parameter with instance specific calls to 'declare' (key, value metadata).
+         *
+         * @param m - the Meta* meta user
+         */
         virtual void metadata(Meta* m) = 0;
+    
+        /**
+         * DSP instance computation, to be called with sucessive in/out audio buffers.
+         *
+         * @param count - the nomber of frames to compute
+         * @param inputs - the input audio buffers as an array of non-interleaved FAUSTFLOAT samples (eiher float, doucbe or quad)
+         * @param outputs - the output audio buffers as an array of non-interleaved FAUSTFLOAT samples (eiher float, doucbe or quad)
+         *
+         */
         virtual void compute(int count, FAUSTFLOAT** inputs, FAUSTFLOAT** outputs) = 0;
+    
+        /**
+         * DSP instance computation : alternative method to be used by subclasses.
+         *
+         * @param date_usec - the timestamp in microsec given by audio driver.
+         * @param count - the nomber of frames to compute
+         * @param inputs - the input audio buffers as an array of non-interleaved FAUSTFLOAT samples (eiher float, doucbe or quad)
+         * @param outputs - the output audio buffers as an array of non-interleaved FAUSTFLOAT samples (eiher float, doucbe or quad)
+         *
+         */
         virtual void compute(double date_usec, int count, FAUSTFLOAT** inputs, FAUSTFLOAT** outputs) { compute(count, inputs, outputs); }
        
 };
 
-//----------------------------------------------------------------
-//  Generic decorator
-//----------------------------------------------------------------
+/**
+ * Generic decorator
+ */
 
 class decorator_dsp : public dsp {
 
@@ -106,10 +162,10 @@ class decorator_dsp : public dsp {
        
 };
 
-//----------------------------------------------------------------
-// On Intel set FZ (Flush to Zero) and DAZ (Denormals Are Zero)
-// flags to avoid costly denormals
-//----------------------------------------------------------------
+/**
+ * On Intel set FZ (Flush to Zero) and DAZ (Denormals Are Zero)
+ * flags to avoid costly denormals.
+ */
 
 #ifdef __SSE__
     #include <xmmintrin.h>

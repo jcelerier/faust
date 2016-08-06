@@ -178,7 +178,10 @@ struct dsp_voice : public MapUI, public decorator_dsp {
  
 };
 
-// Polyphonic DSP
+/**
+ * Polyphonic DSP : group a set of DSP to be played together or triggered by MIDI.
+ */
+
 class mydsp_poly : public dsp, public midi {
 
     private:
