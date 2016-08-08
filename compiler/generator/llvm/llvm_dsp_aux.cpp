@@ -1851,6 +1851,11 @@ EXPORT void instanceClearCDSPInstance(llvm_dsp* dsp)
     }
 }
         
+EXPORT int getSampleRateCDSPInstance(llvm_dsp* dsp)
+{
+    return (dsp) ? reinterpret_cast<llvm_dsp_aux*>(dsp)->getSampleRate() : 0;
+}
+
 EXPORT void buildUserInterfaceCDSPInstance(llvm_dsp* dsp, UIGlue* glue)
 {
     if (dsp) {

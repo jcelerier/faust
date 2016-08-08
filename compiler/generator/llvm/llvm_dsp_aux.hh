@@ -373,7 +373,7 @@ EXPORT void initCDSPInstance(llvm_dsp* dsp, int samplingRate);
     
 EXPORT void instanceInitCDSPInstance(llvm_dsp* dsp, int samplingRate);
     
-EXPORT void instanceDefaultUserInterfaceCDSPInstance(llvm_dsp* dsp, int samplingRate);
+EXPORT void instanceDefaultUserInterfaceCDSPInstance(llvm_dsp* dsp);
 
 EXPORT void instanceClearCDSPInstance(llvm_dsp* dsp);
     
