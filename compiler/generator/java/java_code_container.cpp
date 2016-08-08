@@ -99,6 +99,7 @@ void JAVACodeContainer::produceInternal()
             tab(n+2, *fOut);
             fCodeProducer.Tab(n+2);
             generateInit(&fCodeProducer);
+            generateDefaultUserInterface(&fCodeProducer);
             generateClear(&fCodeProducer);
         tab(n+1, *fOut); *fOut << "}";
     
@@ -213,7 +214,13 @@ void JAVACodeContainer::produceClass()
             tab(n+2, *fOut);
             fCodeProducer.Tab(n+2);
             generateInit(&fCodeProducer);
-            *fOut << "instanceClear();";
+        tab(n+1, *fOut); *fOut << "}";
+    
+        tab(n+1, *fOut);
+        tab(n+1, *fOut); *fOut << "public void instanceDefaultUserInterface() {";
+            tab(n+2, *fOut);
+            fCodeProducer.Tab(n+2);
+            generateDefaultUserInterface(&fCodeProducer);
         tab(n+1, *fOut); *fOut << "}";
     
         tab(n+1, *fOut);
@@ -227,6 +234,8 @@ void JAVACodeContainer::produceClass()
         tab(n+1, *fOut); *fOut << "public void init(int samplingFreq) {";
             tab(n+2, *fOut); *fOut << "classInit(samplingFreq);";
             tab(n+2, *fOut); *fOut << "instanceInit(samplingFreq);";
+            tab(n+2, *fOut); *fOut << "instanceDefaultUserInterface();";
+            tab(n+2, *fOut); *fOut << "instanceClear();";
         tab(n+1, *fOut); *fOut << "}";
 
         // User interface

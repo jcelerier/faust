@@ -58,7 +58,9 @@ class EXPORT llvm_dsp : public dsp {
         void init(int samplingRate);
         
         void instanceInit(int samplingRate);
-        
+    
+        void instanceDefaultUserInterface();
+    
         void instanceClear();
         
         llvm_dsp* clone();
@@ -98,6 +100,7 @@ class EXPORT llvm_dsp_factory : public dsp_factory, public smartable {
         buildUserInterfaceFun fBuildUserInterface;
         initFun fInit;
         initFun fInstanceInit;
+        initDefaultUserInterfaceFun fInstanceDefaultUI;
         clearFun fInstanceClear;
         getSampleRateFun fGetSampleRate;
         computeFun fCompute;
@@ -201,24 +204,30 @@ class llvm_dsp_aux : public dsp {
         virtual ~llvm_dsp_aux();
     
         void metadata(Meta* m);
+    
         void metadata(MetaGlue* glue);
     
         virtual int getNumInputs();
+    
         virtual int getNumOutputs();
     
         virtual void init(int samplingRate);
+    
         virtual void instanceInit(int samplingRate);
+    
+        virtual void instanceDefaultUserInterface();
+    
+        virtual void instanceClear();
     
         virtual int getSampleRate();
       
         virtual void buildUserInterface(UI* ui_interface);
+    
         virtual void buildUserInterface(UIGlue* glue);
         
         virtual void compute(int count, FAUSTFLOAT** input, FAUSTFLOAT** output);
         
         virtual llvm_dsp_aux* clone();
-    
-        virtual void instanceClear();
     
         llvm_dsp_factory* getFactory() { return fFactory; }
     
@@ -363,6 +372,8 @@ EXPORT int getSampleRateCDSPInstance(llvm_dsp* dsp);
 EXPORT void initCDSPInstance(llvm_dsp* dsp, int samplingRate);
     
 EXPORT void instanceInitCDSPInstance(llvm_dsp* dsp, int samplingRate);
+    
+EXPORT void instanceDefaultUserInterfaceCDSPInstance(llvm_dsp* dsp, int samplingRate);
 
 EXPORT void instanceClearCDSPInstance(llvm_dsp* dsp);
     

@@ -558,7 +558,11 @@ int remote_dsp_aux::getNumOutputs()
 // Useless fonction in our case but required for a DSP interface
 //Interesting to implement one day ! 
 void remote_dsp_aux::init(int /*samplingRate*/) {}
+
 void remote_dsp_aux::instanceInit(int /*samplingRate*/) {}
+
+void remote_dsp_aux::instanceDefaultUserInterface() {}
+
 void remote_dsp_aux::instanceClear() {}
 
 // Init remote dsp instance sends a POST request to a remote server
@@ -1111,11 +1115,15 @@ EXPORT void remote_dsp::instanceInit(int samplingRate)
     reinterpret_cast<remote_dsp_aux*>(this)->instanceInit(samplingRate);
 }
 
+EXPORT void remote_dsp::instanceDefaultUserInterface()
+{
+    reinterpret_cast<remote_dsp_aux*>(this)->instanceDefaultUserInterface();
+}
+
 EXPORT void remote_dsp::instanceClear()
 {
     reinterpret_cast<remote_dsp_aux*>(this)->instanceClear();
 }
-
 
 EXPORT dsp* remote_dsp::clone()
 {

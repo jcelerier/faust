@@ -260,6 +260,11 @@ EXPORT void interpreter_dsp::instanceInit(int samplingRate)
     fDSP->instanceInit(samplingRate);
 }
 
+EXPORT void interpreter_dsp::instanceDefaultUserInterface()
+{
+    fDSP->instanceDefaultUserInterface();
+}
+
 EXPORT void interpreter_dsp::instanceClear()
 {
     fDSP->instanceClear();

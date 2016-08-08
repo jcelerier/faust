@@ -353,22 +353,6 @@ void LLVMCodeContainer::generateInstanceInitEnd()
     assert(llvm_instanceInit);
     BasicBlock* return_block = BasicBlock::Create(getContext(), "return_block", llvm_instanceInit);
     
-    Function* llvm_instanceClear = fResult->fModule->getFunction("instanceClear" + fKlassName);
-    if (llvm_instanceClear) {
-        
-        VECTOR_OF_TYPES llvm_instanceInit_args;
-        llvm_instanceInit_args.push_back(fStruct_DSP_ptr);
-        
-        Function::arg_iterator llvm_instanceInit_args_it = llvm_instanceInit->arg_begin();
-        Value* dsp = GET_ITERATOR(llvm_instanceInit_args_it++);
-        
-        vector<Value*> params;
-        params.push_back(dsp);
-        
-        CallInst* call_inst = CREATE_CALL1(llvm_instanceClear, params, "", return_block);
-        call_inst->setCallingConv(CallingConv::C);
-    }
-    
     ReturnInst::Create(getContext(), return_block);
 
     // If previous block branch from previous to current
@@ -412,6 +396,42 @@ void LLVMCodeContainer::generateInstanceClearEnd()
     
     //llvm_instanceClear->dump();
     verifyFunction(*llvm_instanceClear);
+    fBuilder->ClearInsertionPoint();
+}
+
+void LLVMCodeContainer::generateInstanceDefaultUserInterfaceBegin(bool internal)
+{
+    VECTOR_OF_TYPES llvm_instanceDefaultUserInterface_args;
+    llvm_instanceDefaultUserInterface_args.push_back(fStruct_DSP_ptr);
+    FunctionType* llvm_instanceDefaultUserInterface_type = FunctionType::get(fBuilder->getVoidTy(), MAKE_VECTOR_OF_TYPES(llvm_instanceDefaultUserInterface_args), false);
+    
+    Function* llvm_instanceDefaultUserInterface
+        = Function::Create(llvm_instanceDefaultUserInterface_type, (internal) ? Function::InternalLinkage : Function::ExternalLinkage,
+                           "instanceDefaultUserInterface" + fKlassName, fResult->fModule);
+    llvm_instanceDefaultUserInterface->setCallingConv(CallingConv::C);
+    
+    Function::arg_iterator llvm_instanceDefaultUserInterface_args_it = llvm_instanceDefaultUserInterface->arg_begin();
+    Value* dsp = GET_ITERATOR(llvm_instanceDefaultUserInterface_args_it++);
+    dsp->setName("dsp");
+    
+    // Add a first block
+    fBuilder->SetInsertPoint(BasicBlock::Create(getContext(), "entry_block", llvm_instanceDefaultUserInterface));
+}
+
+void LLVMCodeContainer::generateInstanceDefaultUserInterfaceEnd()
+{
+    Function* llvm_instanceDefaultUserInterface = fResult->fModule->getFunction("instanceDefaultUserInterface" + fKlassName);
+    assert(llvm_instanceDefaultUserInterface);
+    BasicBlock* return_block = BasicBlock::Create(getContext(), "return_block", llvm_instanceDefaultUserInterface);
+    ReturnInst::Create(getContext(), return_block);
+    
+    // If previous block branch from previous to current
+    if (fBuilder->GetInsertBlock()) {
+        fBuilder->CreateBr(return_block);
+    }
+    
+    //llvm_instanceDefaultUserInterface->dump();
+    verifyFunction(*llvm_instanceDefaultUserInterface);
     fBuilder->ClearInsertionPoint();
 }
 
@@ -502,16 +522,22 @@ void LLVMCodeContainer::generateInitFun()
     CallInst* call_inst2 = CREATE_CALL1(llvm_instanceInit, params2, "", return_block2);
     call_inst2->setCallingConv(CallingConv::C);
     
-    /*
     vector<Value*> params3;
     params3.push_back(arg1);
     
+    Function* llvm_instanceDefaultUserInterface = fResult->fModule->getFunction("instanceDefaultUserInterface" + fKlassName);
+    assert(llvm_instanceDefaultUserInterface);
+    CallInst* call_inst3 = CREATE_CALL1(llvm_instanceDefaultUserInterface, params3, "", return_block2);
+    call_inst3->setCallingConv(CallingConv::C);
+    
+    vector<Value*> params4;
+    params4.push_back(arg1);
+    
     Function* llvm_instanceClear = fResult->fModule->getFunction("instanceClear" + fKlassName);
     assert(llvm_instanceClear);
-    CallInst* call_inst3 = CREATE_CALL1(llvm_instanceClear, params3, "", return_block2);
-    call_inst3->setCallingConv(CallingConv::C);
-    */
-
+    CallInst* call_inst4 = CREATE_CALL1(llvm_instanceClear, params4, "", return_block2);
+    call_inst4->setCallingConv(CallingConv::C);
+   
     ReturnInst::Create(getContext(), return_block2);
     verifyFunction(*llvm_init);
     fBuilder->ClearInsertionPoint();
@@ -634,6 +660,7 @@ void LLVMCodeContainer::produceInternal()
 
     generateInstanceInitBegin(true);
     generateInit(fCodeProducer);
+    generateDefaultUserInterface(fCodeProducer);
     generateClear(fCodeProducer);
     generateInstanceInitEnd();
 
@@ -679,6 +706,10 @@ LLVMResult* LLVMCodeContainer::produceModule(const string& filename)
     generateClassInitBegin();
     generateStaticInit(fCodeProducer);
     generateClassInitEnd();
+    
+    generateInstanceDefaultUserInterfaceBegin();
+    generateDefaultUserInterface(fCodeProducer);
+    generateInstanceDefaultUserInterfaceEnd();
 
     generateInstanceClearBegin();
     generateClear(fCodeProducer);

@@ -120,6 +120,13 @@ void FirCodeContainer::dumpGlobalsAndInit(FIRInstVisitor& firvisitor, ostream* d
         fClearInstructions->accept(&firvisitor);
         *dst << std::endl;
     }
+    
+    if (fClearInstructions->fCode.size() > 0) {
+        *dst << "======= DefaultUI ==========" << std::endl;
+        *dst << std::endl;
+        fDefaultUserInterfaceInstructions->accept(&firvisitor);
+        *dst << std::endl;
+    }
 
     if (fDestroyInstructions->fCode.size() > 0) {
         *dst << "======= Destroy ==========" << std::endl;

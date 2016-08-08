@@ -1140,7 +1140,7 @@ ValueInst* InstructionsCompiler::generateButtonAux(Tree sig, Tree path, const st
     Typed* type = InstBuilder::genBasicTyped(Typed::kFloatMacro);
 
     pushDeclare(InstBuilder::genDecStructVar(varname, type));
-    pushInitMethod(InstBuilder::genStoreStructVar(varname, InstBuilder::genRealNumInst(Typed::kFloatMacro, 0)));
+    pushDefaultUIInstructions(InstBuilder::genStoreStructVar(varname, InstBuilder::genRealNumInst(Typed::kFloatMacro, 0)));
     addUIWidget(reverse(tl(path)), uiWidget(hd(path), tree(varname), sig));
 
     // Cast to internal float
@@ -1163,7 +1163,7 @@ ValueInst* InstructionsCompiler::generateSliderAux(Tree sig, Tree path, Tree cur
     Typed* type = InstBuilder::genBasicTyped(Typed::kFloatMacro);
 
     pushDeclare(InstBuilder::genDecStructVar(varname, type));
-    pushInitMethod(InstBuilder::genStoreStructVar(varname, InstBuilder::genRealNumInst(Typed::kFloatMacro, tree2float(cur))));
+    pushDefaultUIInstructions(InstBuilder::genStoreStructVar(varname, InstBuilder::genRealNumInst(Typed::kFloatMacro, tree2float(cur))));
     addUIWidget(reverse(tl(path)), uiWidget(hd(path), tree(varname), sig));
 
     // Cast to internal float
@@ -1198,7 +1198,7 @@ ValueInst* InstructionsCompiler::generateBargraphAux(Tree sig, Tree path, Tree m
 	switch (t->variability()) {
 
         case kKonst:
-            pushInitMethod(res);
+            pushDefaultUIInstructions(res);
             break;
 
         case kBlock:
