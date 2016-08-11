@@ -32,7 +32,7 @@
 #include "faust/gui/meta.h"
 
 /*!
- \addtogroup interpretercpp C++ interface for compiling Faust code.
+ \addtogroup interpretercpp C++ interface for compiling Faust code. Note that the API is not thread safe.
  @{
  */
 
@@ -210,8 +210,6 @@ interpreter_dsp_factory* readInterpreterDSPFactoryFromMachineFile(const std::str
  *
  */
 void writeInterpreterDSPFactoryToMachineFile(interpreter_dsp_factory* factory, const std::string& machine_code_path);
-
-void deleteAllInterpreterDSPFactories();
 
 /*!
  @}
