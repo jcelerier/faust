@@ -53,11 +53,7 @@ template <class T>
 class interpreter_dsp_aux;
 
 template <class T>
-struct interpreter_dsp_factory_aux : public dsp_factory_base {
-    
-    std::string fName;
-    std::string fSHAKey;
-    std::string fExpandedDSP;
+struct interpreter_dsp_factory_aux : public dsp_factory_imp {
     
     int fVersion;
     int fNumInputs;
@@ -98,9 +94,7 @@ struct interpreter_dsp_factory_aux : public dsp_factory_base {
                                 FIRBlockInstruction<T>* clear,
                                 FIRBlockInstruction<T>* compute_control,
                                 FIRBlockInstruction<T>* compute_dsp)
-    :fName(name),
-    fSHAKey(sha_key),
-    fExpandedDSP(""),
+    :dsp_factory_imp(name, sha_key, ""),
     fVersion(version_num),
     fNumInputs(inputs),
     fNumOutputs(ouputs),
@@ -149,14 +143,6 @@ struct interpreter_dsp_factory_aux : public dsp_factory_base {
         }
     }
     
-    std::string getName() { return fName; }
-    
-    std::string getSHAKey() { return fSHAKey; }
-    void setSHAKey(const std::string& sha_key) { fSHAKey = sha_key; }
-    
-    std::string getDSPCode() { return fExpandedDSP; }
-    void setDSPCode(const std::string& code) { fExpandedDSP = code; }
-   
     void write(std::ostream* out, bool small = false)
     {
         *out << std::setprecision(std::numeric_limits<T>::max_digits10);
@@ -589,9 +575,7 @@ struct interpreter_dsp_factory_aux : public dsp_factory_base {
             FIRBlockInstruction<T>* branch2 = 0;
             
             // Possibly read sub-blocks
-            if (opcode == FIRInstruction::kIf
-                || opcode == FIRInstruction::kSelectReal
-                || opcode == FIRInstruction::kSelectInt) {
+            if (FIRInstruction::isChoice(FIRInstruction::Opcode(opcode))) {
                 branch1 = readCodeBlock(in);  // consume 'in'
                 branch2 = readCodeBlock(in);  // consume 'in'
             } else if (opcode == FIRInstruction::kLoop) {
