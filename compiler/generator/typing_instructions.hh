@@ -36,11 +36,18 @@ struct TypingVisitor : public InstVisitor {
         virtual ~TypingVisitor()
         {}
     
-        inline bool isRealType(Typed::VarType type)
+        bool isRealType(Typed::VarType type)
         {
             return (type == Typed::kFloat
-                    || type == Typed::kFloatMacro
-                    || type == Typed::kDouble);
+                    || type == Typed::kFloatish
+                    || type == Typed::kDouble
+                    || type == Typed::kDoublish
+                    || type == Typed::kFloatMacro);
+        }
+    
+        bool isIntType(Typed::VarType type)
+        {
+            return (type == Typed::kInt || type == Typed::kInt || type == Typed::kIntish);
         }
     
         virtual void visit(LoadVarInst* inst)
@@ -90,18 +97,19 @@ struct TypingVisitor : public InstVisitor {
                 Typed::VarType type1 = fCurType;
                 
                 if (isRealType(type1)) {
-                    fCurType = Typed::kFloat;
+                    fCurType = type1;
                 } else {
                     inst->fInst2->accept(this);
                     Typed::VarType type2 = fCurType;
                     if (isRealType(type2)) {
-                        fCurType = Typed::kFloat;
-                    } else if (type1 == Typed::kInt || type2 == Typed::kInt) {
+                        fCurType = type2;
+                    } else if (isIntType(type1) || isIntType(type2)) {
                         fCurType = Typed::kInt;
                     } else if (type1 == Typed::kBool && type2 == Typed::kBool) {
                         fCurType = Typed::kBool;
                     } else {
-                        fCurType = Typed::kNoType;
+                        // Should never happen...
+                        assert(false);
                     }
                 }
             }
@@ -123,7 +131,8 @@ struct TypingVisitor : public InstVisitor {
             if (gGlobal->gVarTypeTable.find(inst->fName) != gGlobal->gVarTypeTable.end()) {
                 fCurType = gGlobal->gVarTypeTable[inst->fName]->getType();
             } else {
-                fCurType = Typed::kNoType;
+                // Should never happen...
+                assert(false);
             }
         }
         

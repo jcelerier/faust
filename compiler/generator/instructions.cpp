@@ -29,11 +29,11 @@ void BasicTyped::cleanup() { gGlobal->gTypeTable.clear(); }
 void DeclareVarInst::cleanup() { gGlobal->gVarTypeTable.clear(); }
 
 // Variable types are kept in the global num <===> type table
-DeclareVarInst::DeclareVarInst(Address* address, Typed* typed, ValueInst* value)
-    :fAddress(address), fType(typed), fValue(value)
+DeclareVarInst::DeclareVarInst(Address* address, Typed* type, ValueInst* value)
+    :fAddress(address), fType(type), fValue(value)
 {
     if (gGlobal->gVarTypeTable.find(fAddress->getName()) == gGlobal->gVarTypeTable.end()) {
-        gGlobal->gVarTypeTable[fAddress->getName()] = typed;
+        gGlobal->gVarTypeTable[fAddress->getName()] = type;
     }
 }
 
@@ -73,6 +73,21 @@ int ArrayTyped::getSize()
     } else {
         return fType->getSize() * fSize; 
     }
+}
+
+// Function argument variable types are kept in the global num <===> type table
+NamedTyped* InstBuilder::genNamedTyped(const string& name, Typed* type)
+{
+    if (gGlobal->gVarTypeTable.find(name) == gGlobal->gVarTypeTable.end()) {
+        gGlobal->gVarTypeTable[name] = type;
+    }
+    return new NamedTyped(name, type);
+}
+
+// Function argument variable types are kept in the global num <===> type table
+NamedTyped* InstBuilder::genNamedTyped(const string& name, Typed::VarType type)
+{
+    return genNamedTyped(name, genBasicTyped(type));
 }
 
 ValueInst* InstBuilder::genCastNumFloatInst(ValueInst* inst)
@@ -133,12 +148,12 @@ bool BlockInst::hasReturn()
     return dynamic_cast<RetInst*>(*it);
 }
 
-struct StoreVarInst * DeclareVarInst::store(ValueInst * exp)
+struct StoreVarInst* DeclareVarInst::store(ValueInst* exp)
 {
     return InstBuilder::genStoreVarInst(fAddress, exp);
 }
 
-struct LoadVarInst * DeclareVarInst::load()
+struct LoadVarInst* DeclareVarInst::load()
 {
     return InstBuilder::genLoadVarInst(fAddress);
 }
@@ -166,8 +181,8 @@ DeclareFunInst* InstBuilder::genFunction1(const string& name, Typed::VarType res
 }
 
 DeclareFunInst* InstBuilder::genFunction2(const string& name, Typed::VarType res,
-                                const string& arg1, Typed::VarType arg1_ty,
-                                const string& arg2, Typed::VarType arg2_ty, BlockInst* code)
+                                        const string& arg1, Typed::VarType arg1_ty,
+                                        const string& arg2, Typed::VarType arg2_ty, BlockInst* code)
 {
     list<NamedTyped*> args;
     args.push_back(InstBuilder::genNamedTyped(arg1, arg1_ty));
@@ -177,9 +192,9 @@ DeclareFunInst* InstBuilder::genFunction2(const string& name, Typed::VarType res
 }
 
 DeclareFunInst* InstBuilder::genFunction3(const string& name, Typed::VarType res,
-                                const string& arg1, Typed::VarType arg1_ty,
-                                const string& arg2, Typed::VarType arg2_ty,
-                                const string& arg3, Typed::VarType arg3_ty, BlockInst* code)
+                                        const string& arg1, Typed::VarType arg1_ty,
+                                        const string& arg2, Typed::VarType arg2_ty,
+                                        const string& arg3, Typed::VarType arg3_ty, BlockInst* code)
 {
     list<NamedTyped*> args;
     args.push_back(InstBuilder::genNamedTyped(arg1, arg1_ty));
@@ -190,10 +205,10 @@ DeclareFunInst* InstBuilder::genFunction3(const string& name, Typed::VarType res
 }
 
 DeclareFunInst* InstBuilder::genFunction4(const string& name, Typed::VarType res,
-                                const string& arg1, Typed::VarType arg1_ty,
-                                const string& arg2, Typed::VarType arg2_ty,
-                                const string& arg3, Typed::VarType arg3_ty,
-                                const string& arg4, Typed::VarType arg4_ty, BlockInst* code)
+                                        const string& arg1, Typed::VarType arg1_ty,
+                                        const string& arg2, Typed::VarType arg2_ty,
+                                        const string& arg3, Typed::VarType arg3_ty,
+                                        const string& arg4, Typed::VarType arg4_ty, BlockInst* code)
 {
     list<NamedTyped*> args;
     args.push_back(InstBuilder::genNamedTyped(arg1, arg1_ty));
@@ -205,11 +220,11 @@ DeclareFunInst* InstBuilder::genFunction4(const string& name, Typed::VarType res
 }
 
 DeclareFunInst* InstBuilder::genFunction5(const string& name, Typed::VarType res,
-                                const string& arg1, Typed::VarType arg1_ty,
-                                const string& arg2, Typed::VarType arg2_ty,
-                                const string& arg3, Typed::VarType arg3_ty,
-                                const string& arg4, Typed::VarType arg4_ty,
-                                const string& arg5, Typed::VarType arg5_ty, BlockInst* code)
+                                        const string& arg1, Typed::VarType arg1_ty,
+                                        const string& arg2, Typed::VarType arg2_ty,
+                                        const string& arg3, Typed::VarType arg3_ty,
+                                        const string& arg4, Typed::VarType arg4_ty,
+                                        const string& arg5, Typed::VarType arg5_ty, BlockInst* code)
 {
     list<NamedTyped*> args;
     args.push_back(InstBuilder::genNamedTyped(arg1, arg1_ty));
@@ -222,12 +237,12 @@ DeclareFunInst* InstBuilder::genFunction5(const string& name, Typed::VarType res
 }
 
 DeclareFunInst* InstBuilder::genFunction6(const string& name, Typed::VarType res,
-                                const string& arg1, Typed::VarType arg1_ty,
-                                const string& arg2, Typed::VarType arg2_ty,
-                                const string& arg3, Typed::VarType arg3_ty,
-                                const string& arg4, Typed::VarType arg4_ty,
-                                const string& arg5, Typed::VarType arg5_ty, 
-                                const string& arg6, Typed::VarType arg6_ty, BlockInst* code)
+                                        const string& arg1, Typed::VarType arg1_ty,
+                                        const string& arg2, Typed::VarType arg2_ty,
+                                        const string& arg3, Typed::VarType arg3_ty,
+                                        const string& arg4, Typed::VarType arg4_ty,
+                                        const string& arg5, Typed::VarType arg5_ty, 
+                                        const string& arg6, Typed::VarType arg6_ty, BlockInst* code)
 {
     list<NamedTyped*> args;
     args.push_back(InstBuilder::genNamedTyped(arg1, arg1_ty));
