@@ -79,6 +79,7 @@ struct interpreter_dsp_factory_aux : public dsp_factory_imp {
     
     interpreter_dsp_factory_aux(const std::string& name,
                                 const std::string& sha_key,
+                                const std::vector<std::string>& pathname_list,
                                 int version_num,
                                 int inputs, int ouputs,
                                 int int_heap_size, int real_heap_size,
@@ -94,7 +95,7 @@ struct interpreter_dsp_factory_aux : public dsp_factory_imp {
                                 FIRBlockInstruction<T>* clear,
                                 FIRBlockInstruction<T>* compute_control,
                                 FIRBlockInstruction<T>* compute_dsp)
-    :dsp_factory_imp(name, sha_key, ""),
+    :dsp_factory_imp(name, sha_key, "", pathname_list),
     fVersion(version_num),
     fNumInputs(inputs),
     fNumOutputs(ouputs),
@@ -143,7 +144,7 @@ struct interpreter_dsp_factory_aux : public dsp_factory_imp {
         }
     }
     
-    void write(std::ostream* out, bool small = false)
+    void write(std::ostream* out, bool binary = false, bool small = false)
     {
         *out << std::setprecision(std::numeric_limits<T>::max_digits10);
         
@@ -334,23 +335,26 @@ struct interpreter_dsp_factory_aux : public dsp_factory_imp {
         getline(*in, dummy);    // Read "dsp_block" line
         FIRBlockInstruction<T>* compute_dsp_block = readCodeBlock(in);
         
-        return new interpreter_dsp_factory_aux(factory_name, sha_key,
-                                              version_num,
-                                              inputs, outputs,
-                                              int_heap_size,
-                                              real_heap_size,
-                                              sr_offset,
-                                              count_offset,
-                                              iota_offset,
-                                              opt_level,
-                                              meta_block,
-                                              ui_block,
-                                              static_init_block,
-                                              init_block,
-                                              defaultui_block,
-                                              clear_block,
-                                              compute_control_block,
-                                              compute_dsp_block);
+        std::vector<std::string> dummy_list;
+        return new interpreter_dsp_factory_aux(factory_name,
+                                               sha_key,
+                                               dummy_list,
+                                               version_num,
+                                               inputs, outputs,
+                                               int_heap_size,
+                                               real_heap_size,
+                                               sr_offset,
+                                               count_offset,
+                                               iota_offset,
+                                               opt_level,
+                                               meta_block,
+                                               ui_block,
+                                               static_init_block,
+                                               init_block,
+                                               defaultui_block,
+                                               clear_block,
+                                               compute_control_block,
+                                               compute_dsp_block);
     }
     
     static std::string parseStringToken(std::stringstream* inst)
@@ -623,6 +627,7 @@ struct interpreter_dsp_base : public dsp {
     
     // Not implemented...
     virtual void compute(int count, FAUSTFLOAT** inputs, FAUSTFLOAT** outputs) {}
+    
     virtual void compute(double date_usec, int count, FAUSTFLOAT** inputs, FAUSTFLOAT** outputs) {}
     
 };
@@ -695,10 +700,7 @@ class interpreter_dsp_aux : public interpreter_dsp_base, public FIRInterpreter<T
             return this->fIntMap[this->fSROffset];
         }
     
-        virtual dsp* clone()
-        {
-            return new interpreter_dsp_aux(fFactory);
-        }
+        virtual dsp* clone() { assert(false); } // to be implemented by subclass
     
         virtual int getNumInputs()
         {
@@ -954,39 +956,45 @@ class interpreter_dsp_aux_down : public interpreter_dsp_aux<T> {
     
 };
 
-struct EXPORT interpreter_dsp : public dsp {
+class EXPORT interpreter_dsp : public dsp {
     
-    interpreter_dsp_base* fDSP;
-    interpreter_dsp_factory* fFactory;
+    private:
+        
+        interpreter_dsp_base* fDSP;
+        interpreter_dsp_factory* fFactory;
+ 
+    public:
     
-    interpreter_dsp(interpreter_dsp_aux<float>* dsp, interpreter_dsp_factory* factory)
-        :fDSP(dsp), fFactory(factory)
-    {}
-    interpreter_dsp(interpreter_dsp_aux<double>* dsp, interpreter_dsp_factory* factory)
-        :fDSP(dsp), fFactory(factory)
-    {}
+        interpreter_dsp(interpreter_dsp_aux<float>* dsp, interpreter_dsp_factory* factory)
+            :fDSP(dsp), fFactory(factory)
+        {}
+        interpreter_dsp(interpreter_dsp_aux<double>* dsp, interpreter_dsp_factory* factory)
+            :fDSP(dsp), fFactory(factory)
+        {}
+    
+        virtual ~interpreter_dsp();
+    
+        int getNumInputs();
+    
+        int getNumOutputs();
+    
+        void buildUserInterface(UI* ui_interface);
+    
+        int getSampleRate();
 
-    virtual ~interpreter_dsp();
+        void init(int samplingRate);
     
-    void metadata(Meta* meta);
-  
-    int getNumInputs();
-    int getNumOutputs();
-
-    void init(int samplingRate);
+        void instanceInit(int samplingRate);
     
-    void instanceInit(int samplingRate);
+        void instanceDefaultUserInterface();
     
-    void instanceDefaultUserInterface();
+        void instanceClear();
     
-    void instanceClear();
+        interpreter_dsp* clone();
     
-    interpreter_dsp* clone();
-  
-    void buildUserInterface(UI* ui_interface);
-    int getSampleRate();
+        void metadata(Meta* meta);
     
-    void compute(int count, FAUSTFLOAT** inputs, FAUSTFLOAT** outputs);
+        void compute(int count, FAUSTFLOAT** inputs, FAUSTFLOAT** outputs);
     
 };
 
@@ -1005,72 +1013,6 @@ class EXPORT interpreter_dsp_factory : public dsp_factory, public faust_smartabl
     
     public:
     
-        interpreter_dsp_factory(const std::string& name,
-                             const std::string& sha_key,
-                             int version_num,
-                             int inputs, int ouputs,
-                             int int_heap_size, int real_heap_size,
-                             int sr_offset,
-                             int count_offset,
-                             int iota_offset,
-                             int opt_level,
-                             FIRMetaBlockInstruction* meta,
-                             FIRUserInterfaceBlockInstruction<float>* interface,
-                             FIRBlockInstruction<float>* static_init,
-                             FIRBlockInstruction<float>* init,
-                             FIRBlockInstruction<float>* default_ui,
-                             FIRBlockInstruction<float>* clear,
-                             FIRBlockInstruction<float>* compute_control,
-                             FIRBlockInstruction<float>* compute_dsp)
-        {
-            fFactory = new interpreter_dsp_factory_aux<float>(name, sha_key,
-                                                            version_num,
-                                                            inputs, ouputs,
-                                                            int_heap_size, real_heap_size,
-                                                            sr_offset,
-                                                            count_offset,
-                                                            iota_offset,
-                                                            opt_level,
-                                                            meta, interface,
-                                                            static_init, init,
-                                                            default_ui,
-                                                            clear,
-                                                            compute_control, compute_dsp);
-        }
-
-        interpreter_dsp_factory(const std::string& name,
-                                const std::string& sha_key,
-                                int version_num,
-                                int inputs, int ouputs,
-                                int int_heap_size, int real_heap_size,
-                                int sr_offset,
-                                int count_offset,
-                                int iota_offset,
-                                int opt_level,
-                                FIRMetaBlockInstruction* meta,
-                                FIRUserInterfaceBlockInstruction<double>* interface,
-                                FIRBlockInstruction<double>* static_init,
-                                FIRBlockInstruction<double>* init,
-                                FIRBlockInstruction<double>* default_ui,
-                                FIRBlockInstruction<double>* clear,
-                                FIRBlockInstruction<double>* compute_control,
-                                FIRBlockInstruction<double>* compute_dsp)
-        {
-            fFactory = new interpreter_dsp_factory_aux<double>(name, sha_key,
-                                                            version_num,
-                                                            inputs, ouputs,
-                                                            int_heap_size, real_heap_size,
-                                                            sr_offset,
-                                                            count_offset,
-                                                            iota_offset,
-                                                            opt_level,
-                                                            meta, interface,
-                                                            static_init, init,
-                                                            default_ui,
-                                                            clear,
-                                                            compute_control, compute_dsp);
-        }
-    
         interpreter_dsp_factory(dsp_factory_base* factory):fFactory(factory)
         {}
    
@@ -1084,7 +1026,7 @@ class EXPORT interpreter_dsp_factory : public dsp_factory, public faust_smartabl
         
         interpreter_dsp* createDSPInstance();
         
-        void write(std::ostream* out, bool small = false) { fFactory->write(out, small); }
+        void write(std::ostream* out, bool binary = false, bool small = false) { fFactory->write(out, binary, small); }
     
 };
 
@@ -1094,7 +1036,6 @@ dsp* interpreter_dsp_factory_aux<T>::createDSPInstance(dsp_factory* factory)
     return new interpreter_dsp(new interpreter_dsp_aux<T>(this), dynamic_cast<interpreter_dsp_factory*>(factory));
     //return new interpreter_dsp(new interpreter_dsp_aux_down<T>(this, 2), dynamic_cast<interpreter_dsp_factory*>(factory));
 }
-
 
 EXPORT interpreter_dsp_factory* getInterpreterDSPFactoryFromSHAKey(const std::string& sha_key);
 

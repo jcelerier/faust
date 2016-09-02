@@ -138,17 +138,13 @@ struct global {
     bool            gGenerateSelectWithIf;
     bool            gAllowForeignFunction;
     bool            gComputeIOA;
-
-    // LLVM backend
-    LLVMResult*     gLLVMResult;
     
-    // Interpreter backend
     dsp_factory_base* gDSPFactory;
+
+    // Interpreter backend
     DispatchVisitor*  gInterpreterVisitor;
     
     const char*     gInputString;
-    
-    ostream*        gStringResult;
     
     bool			gLstDependenciesSwitch;     ///< mdoc listing management.
     bool			gLstMdocTagsSwitch;         ///< mdoc listing management.
@@ -479,6 +475,9 @@ struct global {
     static void destroy();
     
     string getFreshID(const string& prefix);
+    
+    string makeDrawPath();
+    string makeDrawPathNoExt();
 };
 
 // Unique shared global pointer

@@ -19,8 +19,8 @@
  ************************************************************************
  ************************************************************************/
  
-#ifndef ASMJS_DSP_AUX_H
-#define ASMJS_DSP_AUX_H
+#ifndef WASM_DSP_AUX_H
+#define WASM_DSP_AUX_H
 
 #include <string>
 #include <cstdlib>
@@ -31,22 +31,22 @@
 
 using namespace std;
 
-class EXPORT asmjs_dsp : public dsp {};
+class EXPORT wasm_dsp : public dsp {};
 
-class EXPORT asmjs_dsp_factory : public dsp_factory, public faust_smartable {
+class EXPORT wasm_dsp_factory : public dsp_factory, public faust_smartable {
     
     protected:
         
         dsp_factory_base* fFactory;
         
-        virtual ~asmjs_dsp_factory()
+        virtual ~wasm_dsp_factory()
         {
             delete fFactory;
         }
         
     public:
         
-        asmjs_dsp_factory(dsp_factory_base* factory):fFactory(factory)
+        wasm_dsp_factory(dsp_factory_base* factory):fFactory(factory)
         {}
     
         std::string getName() { return fFactory->getName(); }
@@ -57,22 +57,22 @@ class EXPORT asmjs_dsp_factory : public dsp_factory, public faust_smartable {
         std::string getDSPCode() { return fFactory->getDSPCode(); }
         void setDSPCode(std::string code) { return fFactory->setDSPCode(code); }
         
-        asmjs_dsp* createDSPInstance() { return nullptr; }
+        wasm_dsp* createDSPInstance() { return nullptr; }
         
-        void write(std::ostream* out, bool binary = false, bool small = false) { fFactory->write(out, binary, small); }
+        void write(std::ostream* out, bool binary, bool small = false) { fFactory->write(out, binary, small); }
     
 };
 
-EXPORT asmjs_dsp_factory* createAsmDSPFactoryFromString(const string& name_app, const string& dsp_content, int argc, const char* argv[], string& error_msg);
+EXPORT wasm_dsp_factory* createWasmDSPFactoryFromString(const string& name_app, const string& dsp_content, int argc, const char* argv[], string& error_msg);
 
-EXPORT bool deleteAsmjsDSPFactory(asmjs_dsp_factory* factory);
+EXPORT bool deleteWasmDSPFactory(wasm_dsp_factory* factory);
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
      /**
-     * Create a Faust DSP asm.js module and additional helpers functions from a DSP source code. 
+     * Create a Faust DSP WASM module and additional helpers functions from a DSP source code.
      * 
      * @param name_app - the name of the Faust program
      * @param dsp_content - the Faust program as a string
@@ -82,7 +82,7 @@ extern "C" {
      *
      * @return a valid DSP asm.js module and additional helpers functions as a string on success (to be deleted by the caller), otherwise a null pointer.
      */ 
-    EXPORT const char* createAsmCDSPFactoryFromString(const char* name_app, const char* dsp_content, int argc, const char* argv[], char* error_msg);
+    EXPORT const char* createWasmCDSPFactoryFromString(const char* name_app, const char* dsp_content, int argc, const char* argv[], char* error_msg);
     
     /**
      * Get the library version.

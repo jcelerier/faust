@@ -29,7 +29,6 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
-#include <openssl/sha.h>
 
 #include "global.hh"
 #include "compatibility.hh"
@@ -77,27 +76,6 @@
 
 using namespace std;
 
-static inline std::string flatten(const std::string& src)
-{
-    std::stringstream dst;
-    for (size_t i = 0; i < src.size(); i++) {
-        switch (src[i]) {
-            case '\n':
-            case '\t':
-            case '\r':
-                dst << '\\' << 'n';
-                break;
-             case '"':
-                dst << '\\' << '\"';
-                break;
-            default:
-                dst << src[i];
-                break;
-        }
-    }
-    return "\"" + dst.str() + "\"";
-}
-
 // Timing can be used outside of the scope of 'gGlobal'
 extern bool gTimingSwitch;
 
@@ -105,6 +83,8 @@ static ifstream* injcode = 0;
 static ifstream* enrobage = 0;
        
 typedef void* (*compile_fun)(void* arg);
+
+string reorganizeCompilationOptions(int argc, const char* argv[]);
 
 #ifdef _WIN32 
 
@@ -132,233 +112,6 @@ static void call_fun(compile_fun fun)
 }
 
 #endif
-
-EXPORT Module* load_module(const string& module_name, llvm::LLVMContext* context)
-{
-    // Try as a complete path
-    if (Module* module = load_single_module(module_name, context)) {
-        return module;
-    } else {
-    // Otherwise use import directories
-        list<string>::iterator it;
-        for (it = gGlobal->gImportDirList.begin(); it != gGlobal->gImportDirList.end(); it++) {
-            string file_name = *it + '/' + module_name;
-            if (Module* module = load_single_module(file_name, context)) {
-                return module;
-            }
-        }
-        return 0;
-    }
-}
-
-#if LLVM_BUILD
-
-static Module* link_all_modules(llvm::LLVMContext* context, Module* dst, char* error)
-{
-    list<string>::iterator it;
-    
-    for (it = gGlobal->gLibraryList.begin(); it != gGlobal->gLibraryList.end(); it++) {
-        string module_name = *it;
-        
-        Module* src = load_module(module_name, context);
-        if (!src) {
-            sprintf(error, "cannot load module : %s", module_name.c_str());
-            return 0;
-        }
-        
-        if (!link_modules(dst, src, error)) {
-            return 0;
-        }
-    }
-        
-    return dst;
-}
-
-#endif
-
-//L ook for 'key' in 'options' and modify the parameter 'position' if found
-static bool parseKey(vector<string> options, const string& key, int& position)
-{
-    for (size_t i = 0; i < options.size(); i++) {
-        if (key == options[i]) {
-            position = i;
-            return true;
-        }
-    }
-    
-    return false;
-}
-
-// Add 'key' if existing in 'options', otherwise add 'defaultKey' (if different from "")
-// #return true if 'key' was added
-static bool addKeyIfExisting(vector<string>& options, vector<string>& newoptions, const string& key, const string& defaultKey, int& position)
-{
-    if (parseKey(options, key, position)) {        
-        newoptions.push_back(options[position]);
-        options.erase(options.begin()+position);
-        position--;
-        return true;
-    } else if (defaultKey != "") {
-        newoptions.push_back(defaultKey);
-    }
-    
-    return false;
-}
-
-// Add 'key' & it's associated value if existing in 'options', otherwise add 'defaultValue' (if different from "")
-static void addKeyValueIfExisting(vector<string>& options, vector<string>& newoptions, const string& key, const string& defaultValue)
-{
-    int position = 0;
-    
-    if (addKeyIfExisting(options, newoptions, key, "", position)) {
-        if (position+1 < int(options.size()) && options[position+1][0] != '-') {
-            newoptions.push_back(options[position+1]);
-            options.erase(options.begin()+position+1);
-            position--;
-        } else {
-            newoptions.push_back(defaultValue);
-        }
-    }
-}
-
-/* Reorganizes the compilation options
- * Following the tree of compilation (Faust_Compilation_Options.pdf in distribution)
- */
-static vector<string> reorganizeCompilationOptionsAux(vector<string>& options)
-{
-    bool vectorize = false;
-    int position = 0;
-    
-    vector<string> newoptions;
-    
-    //------STEP 1 - Single or Double ?
-    addKeyIfExisting(options, newoptions, "-double", "-single", position);
-    
-    //------STEP 2 - Options Leading to -vec inclusion
-    if (addKeyIfExisting(options, newoptions, "-sch", "", position)) {
-        vectorize = true;
-    }
-    
-    if (addKeyIfExisting(options, newoptions, "-omp", "", position)){
-        vectorize = true;
-        addKeyIfExisting(options, newoptions, "-pl", "", position);
-    }
-    
-    if (vectorize) {
-        newoptions.push_back("-vec");
-    }
-    
-    //------STEP3 - Add options depending on -vec/-scal option
-    if (vectorize || addKeyIfExisting(options, newoptions, "-vec", "", position)) {
-        addKeyIfExisting(options, newoptions, "-dfs", "", position);
-        addKeyIfExisting(options, newoptions, "-vls", "", position);
-        addKeyIfExisting(options, newoptions, "-fun", "", position);
-        addKeyIfExisting(options, newoptions, "-g", "", position);
-        addKeyValueIfExisting(options, newoptions, "-vs", "32");
-        addKeyValueIfExisting(options, newoptions, "-lv", "0");
-    } else {
-        addKeyIfExisting(options, newoptions, "-scal", "-scal", position);
-        addKeyIfExisting(options, newoptions, "-inpl", "", position);
-    }
-    
-    addKeyValueIfExisting(options, newoptions, "-mcd", "16");
-    addKeyValueIfExisting(options, newoptions, "-cn", "");
-    
-    //------STEP4 - Add other types of Faust options
-    /*
-    addKeyIfExisting(options, newoptions, "-tg", "", position);
-    addKeyIfExisting(options, newoptions, "-sg", "", position);
-    addKeyIfExisting(options, newoptions, "-ps", "", position);    
-    addKeyIfExisting(options, newoptions, "-svg", "", position);    
-    
-    if (addKeyIfExisting(options, newoptions, "-mdoc", "", position)) {
-        addKeyValueIfExisting(options, newoptions, "-mdlang", "");
-        addKeyValueIfExisting(options, newoptions, "-stripdoc", "");
-    }
-    
-    addKeyIfExisting(options, newoptions, "-sd", "", position);
-    addKeyValueIfExisting(options, newoptions, "-f", "25");
-    addKeyValueIfExisting(options, newoptions, "-mns", "40"); 
-    addKeyIfExisting(options, newoptions, "-sn", "", position);
-    addKeyIfExisting(options, newoptions, "-xml", "", position);
-    addKeyIfExisting(options, newoptions, "-blur", "", position);    
-    addKeyIfExisting(options, newoptions, "-lb", "", position);
-    addKeyIfExisting(options, newoptions, "-mb", "", position);
-    addKeyIfExisting(options, newoptions, "-rb", "", position);    
-    addKeyIfExisting(options, newoptions, "-lt", "", position);    
-    addKeyValueIfExisting(options, newoptions, "-a", "");
-    addKeyIfExisting(options, newoptions, "-i", "", position);
-    addKeyValueIfExisting(options, newoptions, "-cn", "");    
-    addKeyValueIfExisting(options, newoptions, "-t", "120");
-    addKeyIfExisting(options, newoptions, "-time", "", position);
-    addKeyValueIfExisting(options, newoptions, "-o", "");
-    addKeyValueIfExisting(options, newoptions, "-lang", "cpp");
-    addKeyIfExisting(options, newoptions, "-flist", "", position);
-    addKeyValueIfExisting(options, newoptions, "-l", "");
-    addKeyValueIfExisting(options, newoptions, "-O", "");
-    
-    //-------Add Other Options that are possibily passed to the compiler (-I, -blabla, ...)
-    while (options.size() != 0) {
-        if (options[0] != "faust") newoptions.push_back(options[0]); // "faust" first argument
-        options.erase(options.begin());
-    }
-    */
-    
-    return newoptions;
-}
-
-EXPORT string reorganize_compilation_options(int argc, const char* argv[])
-{
-    vector<string> res1;
-    for (int i = 0; i < argc; i++) {
-        res1.push_back(argv[i]);
-    }
-    
-    vector<string> res2 = reorganizeCompilationOptionsAux(res1);
-    
-    string res3;
-    string sep;
-    for (size_t i = 0; i < res2.size(); i++) {
-        res3 = res3 + sep + res2[i];
-        sep = " ";
-    }
-    
-    return "\"" + res3 + "\"";
-}
-
-EXPORT std::string extract_compilation_options(const std::string& dsp_content)
-{
-    size_t pos1 = dsp_content.find(COMPILATION_OPTIONS_KEY);
-    
-    if (pos1 != string::npos) {
-        size_t pos2 = dsp_content.find_first_of('"', pos1 + 1);
-        size_t pos3 = dsp_content.find_first_of('"', pos2 + 1);
-        if (pos2 != string::npos && pos3 != string::npos) {
-            return dsp_content.substr(pos2, (pos3 - pos2) + 1);
-         }
-    }
-    
-    return "";
-}
-
-EXPORT string generateSHA1(const string& dsp_content)
-{
-    // compute SHA1 key
-    unsigned char obuf[20];
-    SHA1((const unsigned char*)dsp_content.c_str(), dsp_content.size(), obuf);
-    
-	// convert SHA1 key into hexadecimal string
-    string sha1key;
-    for (int i = 0; i < 20; i++) {
-    	const char* H = "0123456789ABCDEF";
-    	char c1 = H[(obuf[i] >> 4)];
-    	char c2 = H[(obuf[i] & 15)];
-        sha1key += c1;
-        sha1key += c2;
-    }
-    
-    return sha1key;
-}
 
 static Tree evaluateBlockDiagram(Tree expandedDefList, int& numInputs, int& numOutputs);
 
@@ -819,33 +572,6 @@ static void printDeclareHeader(ostream& dst)
     }
 }
 
-void printHeader(ostream& dst)
-{
-    // defines the metadata we want to print as comments at the begin of in the file
-    set<Tree> selectedKeys;
-    selectedKeys.insert(tree("name"));
-    selectedKeys.insert(tree("author"));
-    selectedKeys.insert(tree("copyright"));
-    selectedKeys.insert(tree("license"));
-    selectedKeys.insert(tree("version"));
-
-    dst << "/* ------------------------------------------------------------" << endl;
-    for (MetaDataSet::iterator i = gGlobal->gMetaDataSet.begin(); i != gGlobal->gMetaDataSet.end(); i++) {
-        if (selectedKeys.count(i->first)) {
-            dst << *(i->first);
-            const char* sep = ": ";
-            for (set<Tree>::iterator j = i->second.begin(); j != i->second.end(); ++j) {
-                dst << sep << **j;
-                sep = ", ";
-            }
-            dst << endl;
-        }
-    }
-
-    dst << "Code generated with Faust " << FAUSTVERSION << " (http://faust.grame.fr)" << endl;
-    dst << "------------------------------------------------------------ */" << endl;
-}
-
 /****************************************************************
  					 			MAIN
 *****************************************************************/
@@ -869,26 +595,6 @@ static string fxname(const string& filename)
     }
 
     return filename.substr(p1, p2-p1);
-}
-
-string makeDrawPath()
-{
-    if (gGlobal->gOutputDir != "") {
-        return gGlobal->gOutputDir + "/" + gGlobal->gMasterName + ".dsp";
-    } else {
-        return gGlobal->gMasterDocument;
-    }
-}
-
-static string makeDrawPathNoExt()
-{
-    if (gGlobal->gOutputDir != "") {
-        return gGlobal->gOutputDir + "/" + gGlobal->gMasterName;
-    } else if (gGlobal->gMasterDocument.length() >= 4 && gGlobal->gMasterDocument.substr(gGlobal->gMasterDocument.length() - 4) == ".dsp") {
-        return gGlobal->gMasterDocument.substr(0, gGlobal->gMasterDocument.length() - 4);
-    } else {
-        return gGlobal->gMasterDocument;
-    }
 }
 
 static void initFaustDirectories()
@@ -948,7 +654,7 @@ static Tree evaluateBlockDiagram(Tree expandedDefList, int& numInputs, int& numO
     if (gGlobal->gDetailsSwitch) { cout << "process = " << boxpp(process) << ";\n"; }
 
     if (gGlobal->gDrawPSSwitch || gGlobal->gDrawSVGSwitch) {
-        string projname = makeDrawPathNoExt();
+        string projname = gGlobal->makeDrawPathNoExt();
         if (gGlobal->gDrawPSSwitch)  { drawSchema(process, subst("$0-ps",  projname).c_str(), "ps"); }
         if (gGlobal->gDrawSVGSwitch) { drawSchema(process, subst("$0-svg", projname).c_str(), "svg"); }
     }
@@ -979,6 +685,15 @@ static Tree evaluateBlockDiagram(Tree expandedDefList, int& numInputs, int& numO
     return process;
 }
 
+static void includeFile(const string& file, ostream* dst)
+{
+    istream* file_include = open_arch_stream(file.c_str());
+    if (file_include) {
+        streamCopy(*file_include, *dst);
+    }
+    delete(file_include);
+}
+
 static pair<InstructionsCompiler*, CodeContainer*> generateCode(Tree signals, int numInputs, int numOutputs, bool generate)
 {
     // By default use "cpp" output
@@ -988,21 +703,18 @@ static pair<InstructionsCompiler*, CodeContainer*> generateCode(Tree signals, in
 
     InstructionsCompiler* comp = NULL;
     CodeContainer* container = NULL;
+    ostream* dst = NULL;
     
-    ostream* dst;
-    
-    if (gGlobal->gOutputFile != "") {
+    // Finally output file
+    if (gGlobal->gOutputFile == "string") {
+        // Nothing
+    } else if (gGlobal->gOutputFile != "") {
         string outpath = (gGlobal->gOutputDir != "") ? (gGlobal->gOutputDir + "/" + gGlobal->gOutputFile) : gGlobal->gOutputFile;
-        if (gGlobal->gOutputFile == "asmjs") {
-            dst = new stringstream(outpath.c_str());
-            gGlobal->gStringResult = dst;
-        } else {
-            dst = new ofstream(outpath.c_str());
-        }
+        dst = new ofstream(outpath.c_str());
     } else {
         dst = &cout;
     }
- 
+  
     startTiming("generateCode");
     
 #if LLVM_BUILD
@@ -1012,26 +724,7 @@ static pair<InstructionsCompiler*, CodeContainer*> generateCode(Tree signals, in
         container = ClangCodeContainer::createContainer(gGlobal->gClassName, numInputs, numOutputs);
 
         if (generate) {
-        
-            ClangCodeContainer* clang_container = dynamic_cast<ClangCodeContainer*>(container);
-            gGlobal->gLLVMResult = clang_container->produceModule(signals, gGlobal->gOutputFile);
-            if (!gGlobal->gLLVMResult) {
-                throw faustexception("Cannot compile C generated code to LLVM IR\n");
-            }
-            gGlobal->gLLVMResult->fPathnameList = gGlobal->gReader.listSrcFiles();
-           
-            // Possibly link with additional LLVM modules
-            char error[256];
-            if (!link_all_modules(gGlobal->gLLVMResult->fContext, gGlobal->gLLVMResult->fModule, error)) {
-                stringstream llvm_error;
-                llvm_error << "ERROR : " << error << endl;
-                throw faustexception(llvm_error.str());
-            }
-            
-            if (gGlobal->gLLVMOut && gGlobal->gOutputFile == "") {
-                outs() << *gGlobal->gLLVMResult->fModule;
-            }
-            
+            // TO CHECK ?
         } else {
             // To trigger 'sig.dot' generation
             if (gGlobal->gVectorSwitch) {
@@ -1059,22 +752,6 @@ static pair<InstructionsCompiler*, CodeContainer*> generateCode(Tree signals, in
          
         if (generate) {
             comp->compileMultiSignal(signals);
-            LLVMCodeContainer* llvm_container = dynamic_cast<LLVMCodeContainer*>(container);
-            gGlobal->gLLVMResult = llvm_container->produceModule(gGlobal->gOutputFile);
-            gGlobal->gLLVMResult->fPathnameList = gGlobal->gReader.listSrcFiles();
-             
-            // Possibly link with additional LLVM modules
-            char error[256];
-            if (!link_all_modules(gGlobal->gLLVMResult->fContext, gGlobal->gLLVMResult->fModule, error)) {
-                stringstream llvm_error;
-                llvm_error << "ERROR : " << error << endl;
-                throw faustexception(llvm_error.str());
-            }
-            
-            if (gGlobal->gLLVMOut && gGlobal->gOutputFile == "") {
-                outs() << *gGlobal->gLLVMResult->fModule;
-            }
-            
         } else {
             // To trigger 'sig.dot' generation
             comp->prepare(signals);
@@ -1105,21 +782,25 @@ static pair<InstructionsCompiler*, CodeContainer*> generateCode(Tree signals, in
             comp = new InterpreterInstructionsCompiler(container);
         }
 
-        if (gGlobal->gPrintXMLSwitch) comp->setDescription(new Description());
-        if (gGlobal->gPrintDocSwitch) comp->setDescription(new Description());
+        if (gGlobal->gPrintXMLSwitch || gGlobal->gPrintDocSwitch) comp->setDescription(new Description());
      
         comp->compileMultiSignal(signals);
-        container->produceClass();
-          
-        gGlobal->gDSPFactory = container->produceFactory();
-        
-        //std::stringstream dst;
-        //gGlobal->gDSPFactory->write(&dst);
-        //std::string code = flatten(dst.str());
-        //cout << code;
-        
-        gGlobal->gDSPFactory->write(dst);
      
+    } else if (gGlobal->gOutputLang == "fir") {
+        
+        gGlobal->gGenerateSelectWithIf = false;
+        
+        container = FirCodeContainer::createContainer(gGlobal->gClassName, numInputs, numOutputs, dst, true);
+        
+        if (gGlobal->gVectorSwitch) {
+            comp = new DAGInstructionsCompiler(container);
+        } else {
+            comp = new InstructionsCompiler(container);
+        }
+        
+        comp->compileMultiSignal(signals);
+        container->produceClass();
+        
     } else {
         
         gGlobal->gGenerateSelectWithIf = false;
@@ -1152,21 +833,7 @@ static pair<InstructionsCompiler*, CodeContainer*> generateCode(Tree signals, in
             gGlobal->gAllowForeignFunction = false; // No foreign functions
             container = WASMCodeContainer::createContainer(gGlobal->gClassName, numInputs, numOutputs, dst);
 
-        } else if (gGlobal->gOutputLang == "fir") {
-       
-            container = FirCodeContainer::createContainer(gGlobal->gClassName, numInputs, numOutputs, true);
-
-            if (gGlobal->gVectorSwitch) {
-                comp = new DAGInstructionsCompiler(container);
-            } else {
-                comp = new InstructionsCompiler(container);
-            }
-
-            comp->compileMultiSignal(signals);
-            container->dump(dst);
-            throw faustexception("");
-        }
-        if (!container) {
+        } else {
             stringstream error;
             error << "ERROR : cannot find compiler for " << "\"" << gGlobal->gOutputLang  << "\"" << endl;
             throw faustexception(error.str());
@@ -1181,117 +848,94 @@ static pair<InstructionsCompiler*, CodeContainer*> generateCode(Tree signals, in
         if (gGlobal->gPrintXMLSwitch || gGlobal->gPrintDocSwitch) comp->setDescription(new Description());
 
         comp->compileMultiSignal(signals);
+    }
 
-        /****************************************************************
-         * generate output file
-         ****************************************************************/
-         
-        if (gGlobal->gArchFile != "") {
+    /****************************************************************
+     * generate output file
+     ****************************************************************/
+     
+    if (gGlobal->gArchFile != "") {
+    
+        // Keep current directory
+        char current_directory[FAUST_PATH_MAX];
+        getcwd(current_directory, FAUST_PATH_MAX);
         
-            // Keep current directory
-            char current_directory[FAUST_PATH_MAX];
-            getcwd(current_directory, FAUST_PATH_MAX);
+        if ((enrobage = open_arch_stream(gGlobal->gArchFile.c_str()))) {
+        
+            /****************************************************************
+             1.7 - Inject code instead of compile
+            *****************************************************************/
+
+            // Check if this is a code injection
+            if (gGlobal->gInjectFlag) {
+                if (gGlobal->gArchFile == "") {
+                    stringstream error;
+                    error << "ERROR : no architecture file specified to inject \"" << gGlobal->gInjectFile << "\"" << endl;
+                    throw faustexception(error.str());
+                } else {
+                    streamCopyUntil(*enrobage,*dst, "<<includeIntrinsic>>");
+                    streamCopyUntil(*enrobage, *dst, "<<includeclass>>");
+                    streamCopy(*injcode, *dst);
+                    streamCopyUntilEnd(*enrobage, *dst);
+                }
+                delete injcode;
+                throw faustexception("");
+            }
+   
+            container->printHeader();
             
-            if ((enrobage = open_arch_stream(gGlobal->gArchFile.c_str()))) {
-            
-                /****************************************************************
-                 1.7 - Inject code instead of compile
-                *****************************************************************/
+            streamCopyUntil(*enrobage, *dst, "<<includeIntrinsic>>");
+            streamCopyUntil(*enrobage, *dst, "<<includeclass>>");
 
-                // Check if this is a code injection
-                if (gGlobal->gInjectFlag) {
-                    if (gGlobal->gArchFile == "") {
-                        stringstream error;
-                        error << "ERROR : no architecture file specified to inject \"" << gGlobal->gInjectFile << "\"" << endl;
-                        throw faustexception(error.str());
-                    } else {
-                        streamCopyUntil(*enrobage, *dst, "<<includeIntrinsic>>");
-                        streamCopyUntil(*enrobage, *dst, "<<includeclass>>");
-                        streamCopy(*injcode, *dst);
-                        streamCopyUntilEnd(*enrobage, *dst);
-                    }
-                    delete injcode;
-                    throw faustexception("");
-                }
-       
-                if (gGlobal->gOutputLang != "js") {
-                    printHeader(*dst);
-                }
-                
-                if ((gGlobal->gOutputLang == "c") || (gGlobal->gOutputLang == "cpp")) {
-                    tab(0, *dst); *dst << "#ifndef  __" << gGlobal->gClassName << "_H__";
-                    tab(0, *dst); *dst << "#define  __" << gGlobal->gClassName << "_H__" << std::endl;
-                }
-
-                streamCopyUntil(*enrobage, *dst, "<<includeIntrinsic>>");
-                streamCopyUntil(*enrobage, *dst, "<<includeclass>>");
-
-                if (gGlobal->gOpenCLSwitch || gGlobal->gCUDASwitch) {
-                    istream* thread_include = open_arch_stream("thread.h");
-                    if (thread_include) {
-                        streamCopy(*thread_include, *dst);
-                    }
-                    delete(thread_include);
-                }
-
-                if ((gGlobal->gOutputLang != "java") 
-                    && (gGlobal->gOutputLang != "js") 
-                    && (gGlobal->gOutputLang != "ajs")
-                    && (gGlobal->gOutputLang != "wasm")) {
-                    printfloatdef(*dst, (gGlobal->gFloatSize == 3));
-                }
-
-                if (gGlobal->gOutputLang == "c") {
-                    *dst << "#include <stdlib.h>"<< std::endl;
-                }
-
-                container->produceClass();
-                streamCopyUntilEnd(*enrobage, *dst);
-                if (gGlobal->gSchedulerSwitch) {
-                    istream* scheduler_include = open_arch_stream("scheduler.cpp");
-                    if (scheduler_include) {
-                        streamCopy(*scheduler_include, *dst);
-                    }
-                    delete(scheduler_include);
-                }
-
-                if ((gGlobal->gOutputLang == "c") || (gGlobal->gOutputLang == "cpp")) {
-                    tab(0, *dst); *dst << "#endif"<< std::endl;
-                }
-                
-                // Restore current_directory
-                chdir(current_directory);
-                delete enrobage;
-                 
-            } else {
-                stringstream error;
-                error << "ERROR : can't open architecture file " << gGlobal->gArchFile << endl;
-                throw faustexception(error.str());
+            if (gGlobal->gOpenCLSwitch || gGlobal->gCUDASwitch) {
+                includeFile("thread.h", dst);
             }
-            
-        } else {
-            if (gGlobal->gOutputLang != "js") {
-                printHeader(*dst);
-            }
-            if ((gGlobal->gOutputLang != "java") 
-                && (gGlobal->gOutputLang != "js") 
-                && (gGlobal->gOutputLang != "ajs")
-                && (gGlobal->gOutputLang != "wasm")) {
-                printfloatdef(*dst, (gGlobal->gFloatSize == 3));
-            }
-            if (gGlobal->gOutputLang == "c") {
-                *dst << "#include <stdlib.h>"<< std::endl;
-            }
+
             container->produceClass();
+            
+            streamCopyUntilEnd(*enrobage, *dst);
+            
+            if (gGlobal->gSchedulerSwitch) {
+                includeFile("scheduler.cpp", dst);
+            }
+
+            container->printFooter();
+            
+            // Force flush since the stream is not closed...
+            dst->flush();
+            
+            // Restore current_directory
+            chdir(current_directory);
+            delete enrobage;
+             
+        } else {
+            stringstream error;
+            error << "ERROR : can't open architecture file " << gGlobal->gArchFile << endl;
+            throw faustexception(error.str());
+        }
+        
+    } else {
+        container->printHeader();
+        container->produceClass();
+        container->printFooter();
+        
+        // Generate factory
+        gGlobal->gDSPFactory = container->produceFactory();
+        
+        // Binary mode for LLVM backend if output different of 'cout'
+        if (dst) {
+            gGlobal->gDSPFactory->write(dst, (dst != &cout), false);
+            // Force flush since the stream is not closed...
+            dst->flush();
         }
     }
-    
+   
     endTiming("generateCode");
 
     return make_pair(comp, container);
 }
 
-static void generateOutputFiles(InstructionsCompiler * comp, CodeContainer * container)
+static void generateOutputFiles(InstructionsCompiler* comp, CodeContainer* container)
 {
     /****************************************************************
      1 - generate XML description (if required)
@@ -1299,7 +943,7 @@ static void generateOutputFiles(InstructionsCompiler * comp, CodeContainer * con
   
     if (gGlobal->gPrintXMLSwitch) {
         Description* D = comp->getDescription(); assert(D);
-        ofstream xout(subst("$0.xml", makeDrawPath()).c_str());
+        ofstream xout(subst("$0.xml", gGlobal->makeDrawPath()).c_str());
       
         if (gGlobal->gMetaDataSet.count(tree("name")) > 0)          D->name(tree2str(*(gGlobal->gMetaDataSet[tree("name")].begin())));
         if (gGlobal->gMetaDataSet.count(tree("author")) > 0)        D->author(tree2str(*(gGlobal->gMetaDataSet[tree("author")].begin())));
@@ -1320,7 +964,7 @@ static void generateOutputFiles(InstructionsCompiler * comp, CodeContainer * con
 
     if (gGlobal->gPrintDocSwitch) {
         if (gGlobal->gLatexDocSwitch) {
-            printDoc(subst("$0-mdoc", makeDrawPathNoExt()).c_str(), "tex", FAUSTVERSION);
+            printDoc(subst("$0-mdoc", gGlobal->makeDrawPathNoExt()).c_str(), "tex", FAUSTVERSION);
         }
     }
 
@@ -1329,7 +973,7 @@ static void generateOutputFiles(InstructionsCompiler * comp, CodeContainer * con
     *****************************************************************/
 
     if (gGlobal->gGraphSwitch) {
-        ofstream dotfile(subst("$0.dot", makeDrawPath()).c_str());
+        ofstream dotfile(subst("$0.dot", gGlobal->makeDrawPath()).c_str());
         container->printGraphDotFormat(dotfile);
     }
 }
@@ -1366,7 +1010,7 @@ static string expand_dsp_internal(int argc, const char* argv[], const char* name
     stringstream out;
     
     // Encode compilation options as a 'declare' : has to be located first in the string
-    out << COMPILATION_OPTIONS << reorganize_compilation_options(argc, argv) << ';' << endl;
+    out << COMPILATION_OPTIONS << reorganizeCompilationOptions(argc, argv) << ';' << endl;
     
     // Encode all libraries paths as 'declare'
     vector<string> pathnames = gGlobal->gReader.listSrcFiles();
@@ -1441,10 +1085,10 @@ void compile_faust_internal(int argc, const char* argv[], const char* name, cons
     int numOutputs = gGlobal->gNumOutputs;
     
     if (gGlobal->gExportDSP) {
-        ofstream out(subst("$0_exp.dsp", makeDrawPathNoExt()).c_str());
+        ofstream out(subst("$0_exp.dsp", gGlobal->makeDrawPathNoExt()).c_str());
         
         // Encode compilation options as a 'declare' : has to be located first in the string
-        out << COMPILATION_OPTIONS << reorganize_compilation_options(argc, argv) << ';' << endl;
+        out << COMPILATION_OPTIONS << reorganizeCompilationOptions(argc, argv) << ';' << endl;
    
         // Encode all libraries paths as 'declare'
         vector<string> pathnames = gGlobal->gReader.listSrcFiles();
@@ -1492,34 +1136,7 @@ void compile_faust_internal(int argc, const char* argv[], const char* name, cons
     generateOutputFiles(comp_container.first, comp_container.second);
 }
 
-#if LLVM_BUILD
-
-EXPORT LLVMResult* compile_faust_llvm(int argc, const char* argv[], const char* name, const char* dsp_content, std::string& error_msg)
-{
-    gGlobal = NULL;
-    LLVMResult* res;
-    
-    try {
-    
-        // Compile module
-        global::allocate();
-        gGlobal->gLLVMOut = false;
-        compile_faust_internal(argc, argv, name, dsp_content, true);
-        error_msg = gGlobal->gErrorMsg;
-        res = gGlobal->gLLVMResult;
-            
-    } catch (faustexception& e) {
-        error_msg = e.Message();
-        res = NULL;
-    }
-    
-    global::destroy();
-    return res;
-}
-
-#endif
-
-EXPORT dsp_factory_base* compile_faust_interpreter(int argc, const char* argv[], const char* name, const char* dsp_content, std::string& error_msg)
+EXPORT dsp_factory_base* compile_faust_factory(int argc, const char* argv[], const char* name, const char* dsp_content, std::string& error_msg)
 {
     gGlobal = NULL;
     dsp_factory_base* res;
@@ -1556,26 +1173,6 @@ EXPORT bool compile_faust(int argc, const char* argv[], const char* name, const 
     } catch (faustexception& e) {
         error_msg = e.Message();
         res = false;
-    }
-    
-    global::destroy();
-    return res;
-}
-
-EXPORT string compile_faust_asmjs(int argc, const char* argv[], const char* name, const char* dsp_content, std::string& error_msg)
-{
-    gGlobal = NULL;
-    string res;
-    
-    try {
-        global::allocate(); 
-        gGlobal->gLLVMOut = true;    
-        compile_faust_internal(argc, argv, name, dsp_content, true);
-        error_msg = gGlobal->gErrorMsg;
-        res = dynamic_cast<stringstream*>(gGlobal->gStringResult)->str();
-    } catch (faustexception& e) {
-        error_msg = e.Message();
-        res = "";
     }
     
     global::destroy();

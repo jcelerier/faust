@@ -26,17 +26,17 @@
 #include <sstream>
 
 #include "compatibility.hh"
-#include "asmjs_dsp_aux.hh"
+#include "wasm_dsp_aux.hh"
 #include "libfaust.h"
 #include "Text.hh"
 
-typedef class faust_smartptr<asmjs_dsp_factory> SDsp_factory;
+typedef class faust_smartptr<wasm_dsp_factory> SDsp_factory;
 
-dsp_factory_table<SDsp_factory> gAsmjsFactoryTable;
+dsp_factory_table<SDsp_factory> gWasmFactoryTable;
 
 // C++ API
 
-EXPORT asmjs_dsp_factory* createAsmDSPFactoryFromString(const string& name_app, const string& dsp_content, int argc, const char* argv[], string& error_msg)
+EXPORT wasm_dsp_factory* createWasmDSPFactoryFromString(const string& name_app, const string& dsp_content, int argc, const char* argv[], string& error_msg)
 {
     string expanded_dsp_content, sha_key;
     
@@ -44,12 +44,12 @@ EXPORT asmjs_dsp_factory* createAsmDSPFactoryFromString(const string& name_app, 
         return 0;
     } else {
         
-        int argc1 = 0;
+        int argc1 = 1;
         const char* argv1[64];
         
         argv1[argc1++] = "faust";
         argv1[argc1++] = "-lang";
-        argv1[argc1++] = "ajs";
+        argv1[argc1++] = "wasm";
         argv1[argc1++] = "-o";
         argv1[argc1++] = "string";
         
@@ -60,17 +60,17 @@ EXPORT asmjs_dsp_factory* createAsmDSPFactoryFromString(const string& name_app, 
         argv1[argc1] = 0;  // NULL terminated argv
         
         dsp_factory_table<SDsp_factory>::factory_iterator it;
-        asmjs_dsp_factory* factory = 0;
+        wasm_dsp_factory* factory = 0;
         
-        if (gAsmjsFactoryTable.getFactory(sha_key, it)) {
+        if (gWasmFactoryTable.getFactory(sha_key, it)) {
             SDsp_factory sfactory = (*it).first;
             sfactory->addReference();
             return sfactory;
-        } else if ((factory = new asmjs_dsp_factory(compile_faust_factory(argc1, argv1,
+        } else if ((factory = new wasm_dsp_factory(compile_faust_factory(argc1, argv1,
                                                                             name_app.c_str(),
                                                                             dsp_content.c_str(),
                                                                             error_msg))) != 0) {
-            gAsmjsFactoryTable.setFactory(factory);
+            gWasmFactoryTable.setFactory(factory);
             factory->setSHAKey(sha_key);
             factory->setDSPCode(expanded_dsp_content);
             return factory;
@@ -80,21 +80,21 @@ EXPORT asmjs_dsp_factory* createAsmDSPFactoryFromString(const string& name_app, 
     }
 }
 
-EXPORT bool deleteInterpreterDSPFactory(asmjs_dsp_factory* factory)
+EXPORT bool deleteInterpreterDSPFactory(wasm_dsp_factory* factory)
 {
-    return (factory) ? gAsmjsFactoryTable.deleteDSPFactory(factory): false;
+    return (factory) ? gWasmFactoryTable.deleteDSPFactory(factory): false;
 }
 
 // C API
 
-EXPORT const char* createAsmCDSPFactoryFromString(const char* name_app, const char* dsp_content, int argc, const char* argv[], char* error_msg)
+EXPORT const char* createWasmCDSPFactoryFromString(const char* name_app, const char* dsp_content, int argc, const char* argv[], char* error_msg)
 {
     string error_msg_aux;
-    asmjs_dsp_factory* factory = createAsmDSPFactoryFromString(name_app, dsp_content, argc, argv, error_msg_aux);
+    wasm_dsp_factory* factory = createWasmDSPFactoryFromString(name_app, dsp_content, argc, argv, error_msg_aux);
     
     if (factory) {
         stringstream dst;
-        factory->write(&dst);
+        factory->write(&dst, false, false);
         strncpy(error_msg, error_msg_aux.c_str(), 4096);
         string str = flatten(dst.str());
         char* cstr = (char*)malloc(str.length() + 1);
@@ -107,9 +107,11 @@ EXPORT const char* createAsmCDSPFactoryFromString(const char* name_app, const ch
     }
 }
 
+/*
 EXPORT char* getCLibFaustVersion() { return (char*)FAUSTVERSION; }
 
 EXPORT void freeCDSP(void* ptr)
 {
     free(ptr);
 }
+*/

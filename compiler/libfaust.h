@@ -41,15 +41,7 @@ namespace llvm
 
 using namespace llvm;
 
-typedef struct LLVMResult {
-
-    llvm::Module* fModule;
-    llvm::LLVMContext* fContext;
-    std::vector<std::string> fPathnameList;
-
-} LLVMResult;
-
-struct dsp_factory_base;
+class dsp_factory_base;
 
 /*
     Low level dynamic compilation interface. Better use the public API defined in llvm-dsp.h or llvm-c-dsp.h
@@ -70,7 +62,7 @@ struct dsp_factory_base;
 EXPORT bool compile_faust(int argc, const char* argv[], const char* name, const char* input, std::string& error_msg, bool generate);
 
 /**
- * Compile a Faust program and produces a LLVM module.
+ * Compile a Faust program and produces a factory.
  *
  * @param argc - the number of parameter in argv array
  * @param argv - the array of parameters
@@ -78,29 +70,11 @@ EXPORT bool compile_faust(int argc, const char* argv[], const char* name, const 
  * @param input - the Faust program as a C string
  * @param error_msg - the error string to be filled, has to be 256 characters long
  *
- * @return a LLVMResult with a LLVM module and LLVM context on success, 0 otherwise, with an error message in error_msg.
+ * @return a factory on success, 0 otherwise, with an error message in error_msg.
  */
 
-EXPORT LLVMResult* compile_faust_llvm(int argc, const char* argv[], const char* name, const char* input, std::string& error_msg);
-
-EXPORT dsp_factory_base* compile_faust_interpreter(int argc, const char* argv[], const char* name, const char* input, std::string& error_msg);
-
-EXPORT std::string compile_faust_asmjs(int argc, const char* argv[], const char* name, const char* input, std::string& error_msg);
+EXPORT dsp_factory_base* compile_faust_factory(int argc, const char* argv[], const char* name, const char* input, std::string& error_msg);
 
 EXPORT std::string expand_dsp(int argc, const char* argv[], const char* name, const char* input, std::string& sha_key, std::string& error_msg);
-
-EXPORT llvm::Module* load_single_module(const std::string filename, llvm::LLVMContext* context);
-
-EXPORT llvm::Module* load_module(const std::string& module_name, llvm::LLVMContext* context);
-
-EXPORT bool link_modules(llvm::Module* dst, llvm::Module* src, char* error_message);
-
-EXPORT std::string generateSHA1(const std::string& dsp_content);
-
-EXPORT std::string path_to_content(const std::string& path);
-
-EXPORT std::string reorganize_compilation_options(int argc, const char* argv[]);
-
-EXPORT std::string extract_compilation_options(const std::string& dsp_content);
 
 #endif

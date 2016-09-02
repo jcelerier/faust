@@ -28,21 +28,12 @@
 
 using namespace std;
 
-struct wasm_dsp_factory : public dsp_factory_imp {
-    
-    wasm_dsp_factory(const string& name, const string& sha_key, const string& dsp)
-        :dsp_factory_imp(name, sha_key, dsp)
-    {}
-    
-    virtual void write(std::ostream* out, bool small = false) {}
-};
-
 class WASMCodeContainer : public virtual CodeContainer {
 
     protected:
 
         std::ostream* fOut;
-        
+    
         void produceInfoFunctions(int tabs, const string& classname, bool isvirtual);
 
     public:
@@ -53,11 +44,13 @@ class WASMCodeContainer : public virtual CodeContainer {
 
         virtual void produceClass();
         virtual void generateCompute(int tab) = 0;
+    
         void produceInternal();
-
+        dsp_factory_base* produceFactory();
+    
         CodeContainer* createScalarContainer(const string& name, int sub_container_type);
 
-        static CodeContainer* createContainer(const string& name, int numInputs, int numOutputs, ostream* dst);
+        static CodeContainer* createContainer(const string& name, int numInputs, int numOutputs, std::ostream* dst = new stringstream());
 };
 
 class WASMScalarCodeContainer : public WASMCodeContainer {

@@ -48,10 +48,12 @@ class JAVAScriptCodeContainer : public virtual CodeContainer {
         virtual void produceClass();
         virtual void generateCompute(int tab) = 0;
         void produceInternal();
-
+    
+        dsp_factory_base* produceFactory();
+   
         CodeContainer* createScalarContainer(const string& name, int sub_container_type);
 
-        static CodeContainer* createContainer(const string& name, int numInputs, int numOutputs, ostream* dst);
+        static CodeContainer* createContainer(const string& name, int numInputs, int numOutputs, ostream* dst = new stringstream());
 };
 
 class JAVAScriptScalarCodeContainer : public JAVAScriptCodeContainer {

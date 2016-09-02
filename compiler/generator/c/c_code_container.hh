@@ -31,15 +31,6 @@
 
 using namespace std;
 
-struct c_dsp_factory : public dsp_factory_imp {
-    
-    c_dsp_factory(const string& name, const string& sha_key, const string& dsp)
-        :dsp_factory_imp(name, sha_key, dsp)
-    {}
-    
-    virtual void write(std::ostream* out, bool small = false) {}
-};
-
 class CCodeContainer : public virtual CodeContainer {
 
     protected:
@@ -63,10 +54,28 @@ class CCodeContainer : public virtual CodeContainer {
         virtual void produceClass();
         virtual void generateCompute(int tab) = 0;
         void produceInternal();
+        dsp_factory_base* produceFactory();
+    
+        virtual void printHeader()
+        {
+            CodeContainer::printHeader(*fOut);
+            
+            *fOut << "#include <stdlib.h>"<< std::endl;
+            
+            tab(0, *fOut); *fOut << "#ifndef  __" << gGlobal->gClassName << "_H__";
+            tab(0, *fOut); *fOut << "#define  __" << gGlobal->gClassName << "_H__" << std::endl << std::endl;
+            
+            printfloatdef(*fOut, (gGlobal->gFloatSize == 3));
+        }
+    
+        virtual void printFooter()
+        {
+            tab(0, *fOut); *fOut << "#endif"<< std::endl;
+        }
 
         CodeContainer* createScalarContainer(const string& name, int sub_container_type);
 
-        static CodeContainer* createContainer(const string& name, int numInputs, int numOutputs, ostream* dst);
+        static CodeContainer* createContainer(const string& name, int numInputs, int numOutputs, ostream* dst = new stringstream());
 
 };
 

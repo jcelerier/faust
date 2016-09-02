@@ -32,9 +32,8 @@ typedef class faust_smartptr<interpreter_dsp_factory> SDsp_factory;
 
 dsp_factory_table<SDsp_factory> gInterpreterFactoryTable;
 
-
 #ifdef LOADER
-static string path_to_content(const string& path)
+string pathToContent(const string& path)
 {
     ifstream file(path.c_str(), ifstream::binary);
     
@@ -55,6 +54,7 @@ static string path_to_content(const string& path)
 }
 #endif
 
+
 // External API
 
 EXPORT interpreter_dsp_factory* getInterpreterDSPFactoryFromSHAKey(const string& sha_key)
@@ -70,7 +70,7 @@ EXPORT interpreter_dsp_factory* createInterpreterDSPFactoryFromFile(const string
     size_t pos = filename.find(".dsp");
     
     if (pos != string::npos) {
-        return createInterpreterDSPFactoryFromString(base.substr(0, pos), path_to_content(filename), argc, argv, error_msg);
+        return createInterpreterDSPFactoryFromString(base.substr(0, pos), pathToContent(filename), argc, argv, error_msg);
     } else {
         error_msg = "File Extension is not the one expected (.dsp expected)";
         return 0;
@@ -92,15 +92,20 @@ EXPORT interpreter_dsp_factory* createInterpreterDSPFactoryFromString(const stri
         return 0;
     } else {
         
-        int argc1 = argc + 3;
+        int argc1 = 0;
         const char* argv1[32];
         
-        argv1[0] = "faust";
-        argv1[1] = "-lang";
-        argv1[2] = "interp";
+        argv1[argc1++] = "faust";
+        argv1[argc1++] = "-lang";
+        argv1[argc1++] = "interp";
+        argv1[argc1++] = "-o";
+        argv1[argc1++] = "string";
+        
         for (int i = 0; i < argc; i++) {
-            argv1[i+3] = argv[i];
+            argv1[argc1++] = argv[i];
         }
+        
+        argv1[argc1] = 0;  // NULL terminated argv
         
         dsp_factory_table<SDsp_factory>::factory_iterator it;
         interpreter_dsp_factory* factory = 0;
@@ -109,10 +114,10 @@ EXPORT interpreter_dsp_factory* createInterpreterDSPFactoryFromString(const stri
             SDsp_factory sfactory = (*it).first;
             sfactory->addReference();
             return sfactory;
-        } else if ((factory = new interpreter_dsp_factory(compile_faust_interpreter(argc1, argv1,
-                                                                                    name_app.c_str(),
-                                                                                    dsp_content.c_str(),
-                                                                                    error_msg))) != 0) {
+        } else if ((factory = new interpreter_dsp_factory(compile_faust_factory(argc1, argv1,
+                                                                                name_app.c_str(),
+                                                                                dsp_content.c_str(),
+                                                                                error_msg))) != 0) {
             gInterpreterFactoryTable.setFactory(factory);
             factory->setSHAKey(sha_key);
             factory->setDSPCode(expanded_dsp_content);

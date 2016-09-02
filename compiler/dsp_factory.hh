@@ -23,6 +23,7 @@
 #define __dsp_factory_base__
 
 #include <string>
+#include <vector>
 #include <ostream>
 
 struct Meta;
@@ -54,7 +55,9 @@ class dsp_factory_base {
         
         virtual void metadata(Meta* meta) = 0;
     
-        virtual void write(std::ostream* out, bool small = false) = 0;
+        virtual void write(std::ostream* out, bool binary = false, bool small = false) = 0;
+    
+        virtual std::vector<std::string> getDSPFactoryLibraryList() = 0;
     
         // Sub-classes will typically implement this method to create a factory from a stream
         static dsp_factory_base* read(std::istream* in) { return nullptr; }
@@ -68,13 +71,23 @@ class dsp_factory_imp : public dsp_factory_base {
         std::string fName;
         std::string fSHAKey;
         std::string fExpandedDSP;
+        std::vector<std::string> fPathnameList;
     
     public:
     
-        dsp_factory_imp(const std::string& name, const std::string& sha_key, const std::string& dsp)
-            :fName(name), fSHAKey(sha_key), fExpandedDSP(dsp)
+        dsp_factory_imp(const std::string& name,
+                        const std::string& sha_key,
+                        const std::string& dsp,
+                        const std::vector<std::string>& pathname_list)
+            :fName(name), fSHAKey(sha_key), fExpandedDSP(dsp), fPathnameList(pathname_list)
         {}
     
+        dsp_factory_imp(const std::string& name,
+                        const std::string& sha_key,
+                        const std::string& dsp)
+            :fName(name), fSHAKey(sha_key), fExpandedDSP(dsp)
+        {}
+        
         virtual ~dsp_factory_imp()
         {}
     
@@ -89,9 +102,33 @@ class dsp_factory_imp : public dsp_factory_base {
         virtual dsp* createDSPInstance(dsp_factory* factory) { return nullptr; }
         
         virtual void metadata(Meta* meta) {}
-        
-        virtual void write(std::ostream* out, bool small = false) {}
+    
+        virtual void write(std::ostream* out, bool binary = false, bool small = false) {}
+    
+        virtual std::vector<std::string> getDSPFactoryLibraryList() { return fPathnameList; }
+ 
+};
 
+class text_dsp_factory_aux : public dsp_factory_imp {
+    
+    protected:
+    
+        std::string fCode;
+    
+    public:
+    
+        text_dsp_factory_aux(const std::string& name,
+                             const std::string& sha_key,
+                             const std::string& dsp,
+                             const std::vector<std::string>& pathname_list,
+                             const std::string& code)
+            :dsp_factory_imp(name, sha_key, dsp, pathname_list), fCode(code)
+        {}
+        
+        virtual void write(std::ostream* out, bool small = false)
+        {
+            *out << fCode;
+        }
 };
 
 #endif
