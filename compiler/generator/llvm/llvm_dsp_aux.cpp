@@ -170,12 +170,6 @@
     #define MEMORY_BUFFER_CREATE(stringref) (MemoryBuffer::getMemBuffer(stringref))
 #endif
 
-#if defined(LLVM_34) || defined(LLVM_35)  || defined(LLVM_36) || defined(LLVM_37) || defined(LLVM_38)
-    #define MAX_OPT_LEVEL 5
-#else 
-    #define MAX_OPT_LEVEL 4
-#endif
-
 using namespace llvm;
 
 // Factories instances management
@@ -468,7 +462,7 @@ llvm_dsp_factory_aux::llvm_dsp_factory_aux(const string& sha_key,
    
     init("BitcodeDSP", "");
     fSHAKey = sha_key;
-    fOptLevel = ((opt_level == -1) || (opt_level > MAX_OPT_LEVEL)) ? MAX_OPT_LEVEL : opt_level;  // Normalize opt_level
+    setOptlevel(opt_level);
     
     fTarget = (target == "") ? fTarget = (llvm::sys::getDefaultTargetTriple() + ":" + GET_CPU_NAME) : target;
     fModule = module;
@@ -1263,7 +1257,6 @@ static llvm_dsp_factory* readDSPFactoryFromBitcodeAux(MEMORY_BUFFER buffer, cons
         } else {
             printf("readDSPFactoryFromBitcode failed : %s\n", error_msg.c_str());
             delete factory_aux;
-            delete module;
             return NULL;
         }
     }
@@ -1334,7 +1327,6 @@ static llvm_dsp_factory* readDSPFactoryFromIRAux(MEMORY_BUFFER buffer, const str
     #else
         Module* module = ParseIR(buffer, err, *context);        // ParseIR takes ownership of the given buffer, so don't delete it
     #endif
-        
         if (!module) return NULL;
         
         setlocale(LC_ALL, tmp_local);
@@ -1350,7 +1342,6 @@ static llvm_dsp_factory* readDSPFactoryFromIRAux(MEMORY_BUFFER buffer, const str
         } else {
             printf("readDSPFactoryFromBitcode failed : %s\n", error_msg.c_str());
             delete factory_aux;
-            delete module;
             return NULL;
         }
     }

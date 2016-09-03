@@ -40,13 +40,18 @@
 #include "dsp_factory.hh"
 #include "TMutex.h"
 
+#if defined(LLVM_34) || defined(LLVM_35)  || defined(LLVM_36) || defined(LLVM_37) || defined(LLVM_38)
+#define LLVM_MAX_OPT_LEVEL 5
+#else
+#define LLVM_MAX_OPT_LEVEL 4
+#endif
+
 using namespace std;
 
 class llvm_dsp_factory;
 
 class FaustObjectCache;
 
-//class EXPORT llvm_dsp_factory_aux : public dsp_factory, public smartable {
 class llvm_dsp_factory_aux : public dsp_factory_imp {
 
     friend class llvm_dsp_aux;
@@ -136,7 +141,7 @@ class llvm_dsp_factory_aux : public dsp_factory_imp {
     
     
         int getOptlevel();
-        void setOptlevel(int optlevel) { fOptLevel = optlevel; }
+        void setOptlevel(int opt_level) {fOptLevel = ((opt_level == -1) || (opt_level > LLVM_MAX_OPT_LEVEL)) ? LLVM_MAX_OPT_LEVEL : opt_level; }
     
         void setClassName(const string& class_name) { fClassName = class_name; }
     
@@ -151,8 +156,6 @@ class llvm_dsp_factory_aux : public dsp_factory_imp {
 
 class llvm_dsp_aux : public dsp {
 
-    friend class llvm_dsp_factory_aux;
-   
     private:
 
         llvm_dsp_factory_aux* fFactory;
@@ -236,7 +239,7 @@ class EXPORT llvm_dsp : public dsp {
 
 class EXPORT llvm_dsp_factory : public dsp_factory, public faust_smartable {
     
-    protected:
+    private:
         
         llvm_dsp_factory_aux* fFactory;
         
@@ -268,7 +271,6 @@ class EXPORT llvm_dsp_factory : public dsp_factory, public faust_smartable {
         
         std::vector<std::string> getDSPFactoryLibraryList() { return fFactory->getDSPFactoryLibraryList(); }
     
-        // Bitcode
         std::string writeDSPFactoryToBitcode() { return fFactory->writeDSPFactoryToBitcode(); }
     
         void writeDSPFactoryToBitcodeFile(const string& bit_code_path) { fFactory->writeDSPFactoryToBitcodeFile(bit_code_path); }

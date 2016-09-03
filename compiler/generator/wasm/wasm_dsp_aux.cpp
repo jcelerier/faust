@@ -41,7 +41,7 @@ EXPORT wasm_dsp_factory* createWasmDSPFactoryFromString(const string& name_app, 
     string expanded_dsp_content, sha_key;
     
     if ((expanded_dsp_content = expandDSPFromString(name_app, dsp_content, argc, argv, sha_key, error_msg)) == "") {
-        return 0;
+        return NULL;
     } else {
         
         int argc1 = 1;
@@ -67,20 +67,20 @@ EXPORT wasm_dsp_factory* createWasmDSPFactoryFromString(const string& name_app, 
             sfactory->addReference();
             return sfactory;
         } else if ((factory = new wasm_dsp_factory(compile_faust_factory(argc1, argv1,
-                                                                            name_app.c_str(),
-                                                                            dsp_content.c_str(),
-                                                                            error_msg))) != 0) {
+                                                                        name_app.c_str(),
+                                                                        dsp_content.c_str(),
+                                                                        error_msg))) != 0) {
             gWasmFactoryTable.setFactory(factory);
             factory->setSHAKey(sha_key);
             factory->setDSPCode(expanded_dsp_content);
             return factory;
         } else {
-            return 0;
+            return NULL;
         }
     }
 }
 
-EXPORT bool deleteInterpreterDSPFactory(wasm_dsp_factory* factory)
+EXPORT bool deleteWasmDSPFactory(wasm_dsp_factory* factory)
 {
     return (factory) ? gWasmFactoryTable.deleteDSPFactory(factory): false;
 }

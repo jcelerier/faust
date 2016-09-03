@@ -27,7 +27,7 @@
 #include "faust/gui/meta.h"
 #include "faust/gui/FUI.h"
 
-#define LLVM 1
+//#define LLVM 1
 
 #ifdef LLVM
 #include "faust/dsp/llvm-dsp.h"
@@ -102,7 +102,7 @@ int main(int argc, char *argv[])
 
         
     #ifdef LLVM
-        factory = createDSPFactoryFromFile(argv[argc-1], argc-2, (const char**)&argv[1], "", error_msg, 0);
+        factory = createDSPFactoryFromFile(argv[argc-1], argc-2, (const char**)&argv[1], "", error_msg, -1);
     #else
         factory = createInterpreterDSPFactoryFromFile(argv[argc-1], argc-2, (const char**)&argv[1], error_msg);
     #endif
