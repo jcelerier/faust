@@ -104,7 +104,9 @@ static void call_fun(compile_fun fun)
         pthread_t thread;
         pthread_attr_t attr; 
         pthread_attr_init(&attr);
+    #ifndef EMCC
         pthread_attr_setstacksize(&attr, 524288 * 128);
+    #endif
         pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE);
         pthread_create(&thread, &attr, fun, NULL);
         pthread_join(thread, NULL);
@@ -1144,7 +1146,6 @@ EXPORT dsp_factory_base* compile_faust_factory(int argc, const char* argv[], con
     
         // Compile module
         global::allocate();
-        gGlobal->gLLVMOut = true; 
         compile_faust_internal(argc, argv, name, dsp_content, true);
         error_msg = gGlobal->gErrorMsg;
         res = gGlobal->gDSPFactory;
@@ -1165,7 +1166,6 @@ EXPORT bool compile_faust(int argc, const char* argv[], const char* name, const 
     
     try {
         global::allocate();  
-        gGlobal->gLLVMOut = true;   
         compile_faust_internal(argc, argv, name, dsp_content, generate);
         error_msg = gGlobal->gErrorMsg;
         res = true;

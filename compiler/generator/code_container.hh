@@ -427,8 +427,7 @@ class CodeContainer : public virtual Garbageable {
         void incUIActiveCount()    { fNumActives++; }
         void incUIPassiveCount()   { fNumPassives++; }
     
-        // TODO: implement it for other containers than InterpreterCodeContainer...
-        virtual dsp_factory_base* produceFactory() { return 0; }
+        virtual dsp_factory_base* produceFactory() { assert(false); return 0; }
     
 };
 

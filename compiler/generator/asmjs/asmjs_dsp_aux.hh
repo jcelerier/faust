@@ -55,13 +55,15 @@ class EXPORT asmjs_dsp_factory : public dsp_factory, public faust_smartable {
         void setSHAKey(std::string sha_key) { fFactory->setSHAKey(sha_key); }
         
         std::string getDSPCode() { return fFactory->getDSPCode(); }
-        void setDSPCode(std::string code) { return fFactory->setDSPCode(code); }
+        void setDSPCode(std::string code) { fFactory->setDSPCode(code); }
         
         asmjs_dsp* createDSPInstance() { return nullptr; }
         
         void write(std::ostream* out, bool binary = false, bool small = false) { fFactory->write(out, binary, small); }
     
 };
+
+EXPORT asmjs_dsp_factory* createAsmDSPFactoryFromFile(const string& filename, int argc, const char* argv[], string& error_msg);
 
 EXPORT asmjs_dsp_factory* createAsmDSPFactoryFromString(const string& name_app, const string& dsp_content, int argc, const char* argv[], string& error_msg);
 
@@ -70,6 +72,18 @@ EXPORT bool deleteAsmjsDSPFactory(asmjs_dsp_factory* factory);
 #ifdef __cplusplus
 extern "C" {
 #endif
+    
+    /**
+     * Create a Faust DSP asm.js module and additional helpers functions from a DSP source code as a file.
+     *
+     * @param filename - the DSP filename
+     * @param argc - the number of parameters in argv array
+     * @param argv - the array of parameters
+     * @param error_msg - the error string to be filled, has to be 4096 characters long
+     *
+     * @return a valid asm.js module and additional helpers functions as a string on success (to be deleted by the caller), otherwise a null pointer.
+     */
+    EXPORT const char* createAsmCDSPFactoryFromFile(const char* filename, int argc, const char* argv[], char* error_msg);
 
      /**
      * Create a Faust DSP asm.js module and additional helpers functions from a DSP source code. 
@@ -78,7 +92,7 @@ extern "C" {
      * @param dsp_content - the Faust program as a string
      * @param argc - the number of parameters in argv array
      * @param argv - the array of parameters
-     * @param error_msg - the error string to be filled, has to be 256 characters long
+     * @param error_msg - the error string to be filled, has to be 4096 characters long
      *
      * @return a valid asm.js module and additional helpers functions as a string on success (to be deleted by the caller), otherwise a null pointer.
      */ 
