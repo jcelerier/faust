@@ -366,7 +366,7 @@ extern "C" {
 
 // Public C interface
 
-EXPORT char* getCLibFaustVersion();
+EXPORT const char* getCLibFaustVersion();
 
 EXPORT llvm_dsp_factory* getCDSPFactoryFromSHAKey(const char* sha_key);
 
