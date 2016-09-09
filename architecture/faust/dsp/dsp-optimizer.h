@@ -1,12 +1,12 @@
 
 /************************************************************************
     FAUST Architecture File
-	Copyright (C) 2016 GRAME, Centre National de Creation Musicale
+    Copyright (C) 2016 GRAME, Centre National de Creation Musicale
     ---------------------------------------------------------------------
     This Architecture section is free software; you can redistribute it 
     and/or modify it under the terms of the GNU General Public License 
-	as published by the Free Software Foundation; either version 3 of 
-	the License, or (at your option) any later version.
+    as published by the Free Software Foundation; either version 3 of 
+    the License, or (at your option) any later version.
 
     This program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -14,14 +14,17 @@
     GNU General Public License for more details.
 
     You should have received a copy of the GNU General Public License 
-	along with this program; If not, see <http://www.gnu.org/licenses/>.
+    along with this program; If not, see <http://www.gnu.org/licenses/>.
 
-	EXCEPTION : As a special exception, you may create a larger work 
-	that contains this FAUST architecture section and distribute  
-	that work under terms of your choice, so long as this FAUST 
-	architecture section is not modified. 
+    EXCEPTION : As a special exception, you may create a larger work 
+    that contains this FAUST architecture section and distribute  
+    that work under terms of your choice, so long as this FAUST 
+    architecture section is not modified. 
 
- ************************************************************************/
+************************************************************************/
+
+#ifndef __dsp_optimizer__
+#define __dsp_optimizer__
 
 #include <iostream>
 #include <sstream>
@@ -33,11 +36,15 @@
 #include "faust/dsp/llvm-dsp.h"
 #include "faust/dsp/dsp-bench.h"
 
+/*
+    A class to find optimal Faust compiler parameters for a given DSP.
+ */
+
 class dsp_optimizer {
 
     private:
         
-        dsp_bench fBench;
+        time_bench fBench;
 
         FAUSTFLOAT* fBuffer;    // a buffer of fNV * fVSize samples
 
@@ -56,7 +63,7 @@ class dsp_optimizer {
         std::string fTarget;
         std::string fError;
         
-        std::vector< std::vector <std::string > > fOptionsTable;
+        std::vector<std::vector <std::string> > fOptionsTable;
     
         bool setRealtimePriority()
         {
@@ -155,27 +162,6 @@ class dsp_optimizer {
             t0.push_back("-scal");
             fOptionsTable.push_back(t0);
             
-            /*
-             std::stringstream num;
-             num << 32;
-             std::vector <string> t1;
-             t1.push_back("-sch");
-             t1.push_back("-vs");
-             t1.push_back(num.str());
-             fOptionsTable.push_back(t1);
-             
-             
-             std::stringstream num;
-             num << 512;
-             std::vector <string> t1;
-             t1.push_back("-vec");
-             t1.push_back("-lv");
-             t1.push_back("1");
-             t1.push_back("-vs");
-             t1.push_back(num.str());
-             fOptionsTable.push_back(t1);
-             */
-            
             // vec -lv 0
             for (int size = 4; size <= fVSIZE; size *= 2) {
                 std::stringstream num;
@@ -207,12 +193,12 @@ class dsp_optimizer {
                 std::stringstream num;
                 num << size;
                 std::vector <std::string> t1;
-                t1.push_back("-dfs");
                 t1.push_back("-vec");
                 t1.push_back("-lv");
                 t1.push_back("0");
                 t1.push_back("-vs");
                 t1.push_back(num.str());
+                t1.push_back("-dfs");
                 fOptionsTable.push_back(t1);
             }
             
@@ -221,18 +207,18 @@ class dsp_optimizer {
                 std::stringstream num;
                 num << size;
                 std::vector <std::string> t1;
-                t1.push_back("-dfs");
                 t1.push_back("-vec");
                 t1.push_back("-lv");
                 t1.push_back("1");
                 t1.push_back("-vs");
                 t1.push_back(num.str());
+                t1.push_back("-dfs");
                 fOptionsTable.push_back(t1);
             }
             
             /*
-             // sch
-             for (int size = 8; size <= fVSIZE; size *= 2) {
+            // sch
+            for (int size = 4; size <= fVSIZE; size *= 2) {
                  std::stringstream num;
                  num << size;
                  std::vector <std::string> t1;
@@ -244,8 +230,6 @@ class dsp_optimizer {
              */
         }
     
-        const char* getError() { return fError.c_str(); }
-        
         void printItem(const std::vector <std::string>& item)
         {
             for (int i = 0; i < item.size(); i++) {
@@ -254,9 +238,8 @@ class dsp_optimizer {
             std::cout << " : ";
         }
         
-        bool computeOne(int index, double& res)
+        bool computeOne(int index, const std::vector<std::string>& item, double& res)
         {
-            std::vector <std::string> item = fOptionsTable[index];
             printItem(item);
             
             if (fInput == "") {
@@ -285,18 +268,7 @@ class dsp_optimizer {
             if (!fFactory)  {
                 std::cout << "Cannot create factory : " << fError.c_str() << std::endl;
                 return false;
-            } else {
-                //std::cout << "Factory correctly generated" << endl;
             }
-            
-            /*
-             std::vector<std::string> path_list = getLibraryList(fFactory);
-             std::vector<std::string>::iterator it;
-             for (it = path_list.begin(); it != path_list.end(); it++) {
-                std::string file = *it;
-                std::cout << "file " << file.c_str() << endl;
-             }
-             */
             
             fDSP = fFactory->createDSPInstance();
             
@@ -341,9 +313,29 @@ class dsp_optimizer {
                  std::cout << "pthread_attr_setstacksize error " << res <<  std::endl;
             } 
             
-             std::cout << "setStackSize size = " << size <<  std::endl;
+            std::cout << "setStackSize size = " << size <<  std::endl;
         }
-       
+    
+        std::vector<std::string> findOptimizedParametersAux(const std::vector<std::vector <std::string> >& options, double& best)
+        {
+            std::vector<std::pair<int, double > > table_res;
+            double res = 0.;
+            
+            for (int i = 0; i < options.size(); i++) {
+                if (computeOne(i, options[i], res)) {
+                    table_res.push_back(std::make_pair(i, res));
+                } else {
+                    std::cout << "computeOne error..." << std::endl;
+                }
+            }
+            
+            sort(table_res.begin(), table_res.end(), compareFun);
+            best = table_res[0].second;
+            return options[table_res[0].first];
+        }
+
+        static bool compareFun(std::pair<int, double> i, std::pair<int, double> j) { return (i.second > j.second); }
+    
     public:
     
         dsp_optimizer(const char* filename,
@@ -390,35 +382,30 @@ class dsp_optimizer {
             init();
         }
     
-        static bool myfunction(std::pair <int, double > i, std::pair <int, double > j) { return (i.second > j.second); }
-    
         virtual ~dsp_optimizer()
         {}
     
-        std::vector<std::string> findOptimizedParameters()
+        std::vector<std::string> findOptimizedParameters(double& best)
         {
-            std::vector<  std::pair <int, double > > table_res;
-            double res;
-             
-            for (int i = 0; i < fOptionsTable.size(); i++) {
-                if (computeOne(i, res)) {
-                    table_res.push_back(std::make_pair(i, res));
-                } else {
-                    std::cout << "computeOne error..." << std::endl;
-                }
+            std::cout << "Discover best parameters option" << std::endl;
+            std::vector<std::string> best1 = findOptimizedParametersAux(fOptionsTable, best);
+            
+            std::cout << "Refined with -mcd" << std::endl;
+            std::vector<std::vector <std::string> > options_table;
+            for (int size = 2; size <= 256; size *= 2) {
+                std::vector<std::string> best2 = best1;
+                std::stringstream num;
+                num << size;
+                best2.push_back("-mcd");
+                best2.push_back(num.str());
+                options_table.push_back(best2);
             }
             
-            sort(table_res.begin(), table_res.end(), myfunction);
-             
-            if (table_res.size() > 0) {
-                return fOptionsTable[table_res[0].first];
-            } else {
-                // Scalar...
-                std::cout << "findOptimize no options found..." << std::endl;
-                return fOptionsTable[0];
-            }
+            return findOptimizedParametersAux(options_table, best);
         }
+    
+        const char* getError() { return fError.c_str(); }
     
 };
 
-
+#endif

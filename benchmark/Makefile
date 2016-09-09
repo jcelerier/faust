@@ -1,3 +1,16 @@
+# Directory containing Faust .lib and .cpp architecture files:
+ck1 := /opt/local/lib/faust/music.lib
+ck2 := /usr/local/lib/faust/music.lib
+ck3 := $(FAUST_LIB_PATH)/faust/music.lib
+LIB := $(if $(wildcard $(ck1)),/opt/local/lib,"")
+LIB := $(if $(wildcard $(ck2)),/usr/local/lib,$(LIB))
+LIB := $(if $(wildcard $(ck3)),$(FAUST_LIB_PATH),$(LIB))
+
+DESTDIR ?=
+PREFIX ?= /usr/local
+
+prefix := $(DESTDIR)$(PREFIX)
+
 system	:= $(shell uname -s)
 
 LLVM_VERSION = $(shell llvm-config --version)
@@ -78,7 +91,7 @@ all : icc gcc
 icc : ialsascal ialsavec ialsavec2 ialsavec4 ialsaomp2 ialsasch ialsasch2
 gcc : galsascal galsavec galsavec2 galsavec4 galsaomp2 galsasch galsasch2
 #osx : gcoreaudioscal gcoreaudiovec1 gcoreaudiovec2 gcoreaudiovec3 gcoreaudiovec4 gcoreaudiosch gcoreaudiosch2
-osx : gcoreaudioscal gcoreaudiovec1 gcoreaudiovec2 gcoreaudiosch gcoreaudiollvm  bscal bvec1 bvec2 bscalllvm
+osx : gcoreaudioscal gcoreaudiovec1 gcoreaudiovec2 gcoreaudiosch gcoreaudiollvm  bscal bvec1 bvec2 bscalllvm bench-llvm
 #osx : bscal bvec1 bvec2 bscalllvm
 
 
@@ -124,8 +137,6 @@ ialsaomp2 :
 	install -d ialsaomp2dir
 	$(MAKE) DEST='ialsaomp2dir/' ARCH='alsa-gtk-bench.cpp' VEC='-omp -g -vs $(VSIZE)' LIB='-lpthread -lasound  `pkg-config --cflags --libs gtk+-2.0`' CXX='icc' CXXFLAGS='-openmp '$(MYICCFLAGS) -f Makefile.compile
 
-
-
 ### gcc-compiler single-precision x {scalar, vector and openMP}
 
 galsascal :
@@ -170,6 +181,10 @@ galsaomp2 :
 
 
 # OSX 
+
+bench-llvm: bench-llvm.cpp
+	$(CXX -O3 -D$(LLVM_VERSION) -emit-llvm -S ../architecture/scheduler.cpp -o scheduler.ll
+	$(CXX) -O3 bench-llvm.cpp $(LIB)/libfaust.a  `llvm-config --ldflags --libs all --system-libs` -lz -lncurses -lcrypto -o bench-llvm
 
 gcoreaudiollvm : coreaudio-gtk-llvm-bench.cpp
 	$(CXX) -O3 -D$(LLVM_VERSION) -emit-llvm -S ../architecture/scheduler.cpp -o scheduler.ll
@@ -247,8 +262,13 @@ iqalsaomp :
 	install -d iqalsaompdir
 	$(MAKE) DEST='iqalsaompdir/' ARCH='alsa-gtk-bench.cpp' VEC='-quad -omp -vs $(VSIZE)' LIB='-lpthread -lasound  `pkg-config --cflags --libs gtk+-2.0`' CXX='icc' CXXFLAGS='-openmp '$(MYICCFLAGS) -f Makefile.compile
 
+install:
+	cp bench-llvm $(prefix)/bin
+	cp scheduler.ll $(prefix)/lib/faust
 
 clean :
 	rm -rf *dir
-	rm gcoreaudiollvm
-	rm bscalllvm
+	([ -e gcoreaudiollvm ] && rm gcoreaudiollvm) || echo gcoreaudiollvm not found
+	([ -e bscalllvm ] && rm bscalllvm) || echo gcoreaudiollvm not found
+	([ -e bench-llvm ] && rm bench-llvm ) || echo bench-llvm not found
+
