@@ -79,25 +79,34 @@ class dsp {
     
         /* Returns the sample rate currently used by the instance */
         virtual int getSampleRate() = 0;
-    
+        
         /** Global init, calls the following methods :
          * - static class 'classInit' : static table initialisation
          * - 'instanceInit' : constants and instance table initialisation
-         * - 'instanceDefaultUserInterface' : set default control parameters values
-         * - 'instanceClear' : init instance state (delay lines...)
+         *
+         * @param samplingRate - the sampling rate in Herz
          */
         virtual void init(int samplingRate) = 0;
-    
-        /* Instance constants and tables initialisation */
+        
+        /** Init instance state
+         *
+         * @param samplingRate - the sampling rate in Herz
+         */
         virtual void instanceInit(int samplingRate) = 0;
-    
-        /* Set default control parameters values */
-        virtual void instanceDefaultUserInterface() = 0;
-    
+        
+        /** Init instance constant state
+         *
+         * @param samplingRate - the sampling rate in Herz
+         */
+        virtual void instanceConstants(int samplingRate) = 0;
+        
+        /* Init default control parameters values */
+        virtual void instanceResetUserInterface() = 0;
+        
         /* Init instance state (delay lines...) */
         virtual void instanceClear() = 0;
-    
-        /**  
+   
+        /**
          * Return a clone of the instance.
          *
          * @return a copy of the instance on success, otherwise a null pointer.
@@ -155,13 +164,14 @@ class decorator_dsp : public dsp {
         virtual int getSampleRate() { return fDSP->getSampleRate(); }
         virtual void init(int samplingRate) { fDSP->init(samplingRate); }
         virtual void instanceInit(int samplingRate) { fDSP->instanceInit(samplingRate); }
-        virtual void instanceDefaultUserInterface() { fDSP->instanceDefaultUserInterface(); }
+        virtual void instanceConstants(int samplingRate) { fDSP->instanceConstants(samplingRate); }
+        virtual void instanceResetUserInterface() { fDSP->instanceResetUserInterface(); }
         virtual void instanceClear() { fDSP->instanceClear(); }
         virtual decorator_dsp* clone() { return new decorator_dsp(fDSP->clone()); }
         virtual void metadata(Meta* m) { return fDSP->metadata(m); }
         virtual void compute(int count, FAUSTFLOAT** inputs, FAUSTFLOAT** outputs) { fDSP->compute(count, inputs, outputs); }
         virtual void compute(double date_usec, int count, FAUSTFLOAT** inputs, FAUSTFLOAT** outputs) { fDSP->compute(date_usec, count, inputs, outputs); }
-       
+    
 };
 
 /**

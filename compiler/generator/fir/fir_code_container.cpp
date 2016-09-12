@@ -129,9 +129,9 @@ void FirCodeContainer::dumpGlobalsAndInit(FIRInstVisitor& firvisitor, ostream* d
     }
     
     if (fClearInstructions->fCode.size() > 0) {
-        *dst << "======= DefaultUI ==========" << std::endl;
+        *dst << "======= ResetUI ==========" << std::endl;
         *dst << std::endl;
-        fDefaultUserInterfaceInstructions->accept(&firvisitor);
+        fResetUserInterfaceInstructions->accept(&firvisitor);
         *dst << std::endl;
     }
 

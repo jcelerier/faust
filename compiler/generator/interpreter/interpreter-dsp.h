@@ -55,7 +55,9 @@ class interpreter_dsp : public dsp {
         
         void instanceInit(int samplingRate);
     
-        void instanceDefaultUserInterface();
+        void instanceConstants(int samplingRate);
+    
+        void instanceResetUserInterface();
         
         void instanceClear();
         

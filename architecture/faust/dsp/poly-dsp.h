@@ -443,10 +443,17 @@ class mydsp_poly : public dsp, public midi {
             }
         }
     
-        void instanceDefaultUserInterface()
+        void instanceConstants(int samplingRate)
         {
             for (int i = 0; i < fPolyphony; i++) {
-                fVoiceTable[i]->instanceDefaultUserInterface();
+                fVoiceTable[i]->instanceConstants(samplingRate);
+            }
+        }
+    
+        void instanceResetUserInterface()
+        {
+            for (int i = 0; i < fPolyphony; i++) {
+                fVoiceTable[i]->instanceResetUserInterface();
             }
         }
     

@@ -86,7 +86,8 @@ class llvm_dsp_factory_aux : public dsp_factory_imp {
         buildUserInterfaceFun fBuildUserInterface;
         initFun fInit;
         initFun fInstanceInit;
-        initDefaultUserInterfaceFun fInstanceDefaultUI;
+        initFun fInstanceConstants;
+        initDefaultUserInterfaceFun fInstanceResetUI;
         clearFun fInstanceClear;
         getSampleRateFun fGetSampleRate;
         computeFun fCompute;
@@ -190,7 +191,9 @@ class llvm_dsp_aux : public dsp {
     
         virtual void instanceInit(int samplingRate);
     
-        virtual void instanceDefaultUserInterface();
+        virtual void instanceConstants(int samplingRate);
+    
+        virtual void instanceResetUserInterface();
     
         virtual void instanceClear();
     
@@ -235,7 +238,9 @@ class EXPORT llvm_dsp : public dsp {
         
         void instanceInit(int samplingRate);
     
-        void instanceDefaultUserInterface();
+        void instanceConstants(int samplingRate);
+    
+        void instanceResetUserInterface();
         
         void instanceClear();
         

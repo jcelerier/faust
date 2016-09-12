@@ -71,7 +71,7 @@ struct interpreter_dsp_factory_aux : public dsp_factory_imp {
     FIRUserInterfaceBlockInstruction<T>* fUserInterfaceBlock;
     FIRBlockInstruction<T>* fStaticInitBlock;
     FIRBlockInstruction<T>* fInitBlock;
-    FIRBlockInstruction<T>* fDefaultUIBlock;
+    FIRBlockInstruction<T>* fResetUIBlock;
     FIRBlockInstruction<T>* fClearBlock;
     FIRBlockInstruction<T>* fComputeBlock;
     FIRBlockInstruction<T>* fComputeDSPBlock;
@@ -90,7 +90,7 @@ struct interpreter_dsp_factory_aux : public dsp_factory_imp {
                                 FIRUserInterfaceBlockInstruction<T>* interface,
                                 FIRBlockInstruction<T>* static_init,
                                 FIRBlockInstruction<T>* init,
-                                FIRBlockInstruction<T>* defaultui,
+                                FIRBlockInstruction<T>* resetui,
                                 FIRBlockInstruction<T>* clear,
                                 FIRBlockInstruction<T>* compute_control,
                                 FIRBlockInstruction<T>* compute_dsp)
@@ -109,7 +109,7 @@ struct interpreter_dsp_factory_aux : public dsp_factory_imp {
     fUserInterfaceBlock(interface),
     fStaticInitBlock(static_init),
     fInitBlock(init),
-    fDefaultUIBlock(defaultui),
+    fResetUIBlock(resetui),
     fClearBlock(clear),
     fComputeBlock(compute_control),
     fComputeDSPBlock(compute_dsp)
@@ -121,7 +121,7 @@ struct interpreter_dsp_factory_aux : public dsp_factory_imp {
         delete fUserInterfaceBlock;
         delete fStaticInitBlock;
         delete fInitBlock;
-        delete fDefaultUIBlock;
+        delete fResetUIBlock;
         delete fClearBlock;
         delete fComputeBlock;
         delete fComputeDSPBlock;
@@ -135,7 +135,7 @@ struct interpreter_dsp_factory_aux : public dsp_factory_imp {
         #ifndef INTERPRETER_TRACE
             fStaticInitBlock = FIRInstructionOptimizer<T>::optimizeBlock(fStaticInitBlock, 1, fOptLevel);
             fInitBlock = FIRInstructionOptimizer<T>::optimizeBlock(fInitBlock, 1, fOptLevel);
-            fDefaultUIBlock = FIRInstructionOptimizer<T>::optimizeBlock(fDefaultUIBlock, 1, fOptLevel);
+            fResetUIBlock = FIRInstructionOptimizer<T>::optimizeBlock(fResetUIBlock, 1, fOptLevel);
             fClearBlock = FIRInstructionOptimizer<T>::optimizeBlock(fClearBlock, 1, fOptLevel);
             fComputeBlock = FIRInstructionOptimizer<T>::optimizeBlock(fComputeBlock, 1, fOptLevel);
             fComputeDSPBlock = FIRInstructionOptimizer<T>::optimizeBlock(fComputeDSPBlock, 1, fOptLevel);
@@ -173,7 +173,7 @@ struct interpreter_dsp_factory_aux : public dsp_factory_imp {
             fInitBlock->write(out, small);
             
             *out << "c" << std::endl;
-            fDefaultUIBlock->write(out, small);
+            fResetUIBlock->write(out, small);
             
             *out << "c" << std::endl;
             fClearBlock->write(out, small);
@@ -205,11 +205,11 @@ struct interpreter_dsp_factory_aux : public dsp_factory_imp {
             *out << "static_init_block" << std::endl;
             fStaticInitBlock->write(out, small);
             
-            *out << "init_block" << std::endl;
+            *out << "constants_block" << std::endl;
             fInitBlock->write(out, small);
             
-            *out << "default_ui" << std::endl;
-            fDefaultUIBlock->write(out, small);
+            *out << "reset_ui" << std::endl;
+            fResetUIBlock->write(out, small);
             
             *out << "clear_block" << std::endl;
             fClearBlock->write(out, small);
@@ -314,13 +314,13 @@ struct interpreter_dsp_factory_aux : public dsp_factory_imp {
         getline(*in, dummy);    // Read "static_init_block" line
         FIRBlockInstruction<T>* static_init_block = readCodeBlock(in);
         
-        // Read init block
-        getline(*in, dummy);    // Read "init_block" line
+        // Read constants block
+        getline(*in, dummy);    // Read "constants_block" line
         FIRBlockInstruction<T>* init_block = readCodeBlock(in);
         
         // Read default ui block
         getline(*in, dummy);    // Read "clear_block" line
-        FIRBlockInstruction<T>* defaultui_block = readCodeBlock(in);
+        FIRBlockInstruction<T>* resetui_block = readCodeBlock(in);
         
         // Read clear block
         getline(*in, dummy);    // Read "clear_block" line
@@ -350,7 +350,7 @@ struct interpreter_dsp_factory_aux : public dsp_factory_imp {
                                                ui_block,
                                                static_init_block,
                                                init_block,
-                                               defaultui_block,
+                                               resetui_block,
                                                clear_block,
                                                compute_control_block,
                                                compute_dsp_block);
@@ -620,7 +620,9 @@ struct interpreter_dsp_base : public dsp {
     
     virtual void instanceInit(int samplingRate) {}
     
-    virtual void instanceDefaultUserInterface() {}
+    virtual void instanceConstants(int samplingRate) {}
+    
+    virtual void instanceResetUserInterface() {}
     
     virtual void instanceClear() {}
     
@@ -640,13 +642,23 @@ class interpreter_dsp_aux : public interpreter_dsp_base, public FIRInterpreter<T
     
         FIRBlockInstruction<T>* fStaticInitBlock;
         FIRBlockInstruction<T>* fInitBlock;
-        FIRBlockInstruction<T>* fDefaultUIBlock;
+        FIRBlockInstruction<T>* fResetUIBlock;
         FIRBlockInstruction<T>* fClearBlock;
         FIRBlockInstruction<T>* fComputeBlock;
         FIRBlockInstruction<T>* fComputeDSPBlock;
     
         std::map<int, int> fIntMap;
         std::map<int, T> fRealMap;
+    
+    
+        void initSRFields(int samplingRate)
+        {
+            // Store samplingRate in specialization fIntMap
+            this->fIntMap[this->fSROffset] = samplingRate;
+            
+            // Store samplingRate in 'fSamplingFreq' variable at correct offset in fIntHeap
+            this->fIntHeap[this->fSROffset] = samplingRate;
+        }
    	
     public:
     
@@ -662,7 +674,7 @@ class interpreter_dsp_aux : public interpreter_dsp_base, public FIRInterpreter<T
             /*
             fFactory->fStaticInitBlock->write(&std::cout);
             fFactory->fInitBlock->write(&std::cout);
-            fFactory->fDefaultUIBlock->write(&std::cout);
+            fFactory->fResetUIBlock->write(&std::cout);
             fFactory->fClearBlock->write(&std::cout);
             fFactory->fComputeBlock->write(&std::cout);
             fFactory->fComputeDSPBlock->write(&std::cout);
@@ -671,7 +683,7 @@ class interpreter_dsp_aux : public interpreter_dsp_base, public FIRInterpreter<T
          
             this->fStaticInitBlock = 0;
             this->fInitBlock = 0;
-            this->fDefaultUIBlock = 0;
+            this->fResetUIBlock = 0;
             this->fClearBlock = 0;
             this->fComputeBlock = 0;
             this->fComputeDSPBlock = 0;
@@ -683,7 +695,7 @@ class interpreter_dsp_aux : public interpreter_dsp_base, public FIRInterpreter<T
             delete [] this->fOutputs;
             delete this->fStaticInitBlock;
             delete this->fInitBlock;
-            delete this->fDefaultUIBlock;
+            delete this->fResetUIBlock;
             delete this->fClearBlock;
             delete this->fComputeBlock;
             delete this->fComputeDSPBlock;
@@ -727,16 +739,18 @@ class interpreter_dsp_aux : public interpreter_dsp_base, public FIRInterpreter<T
             this->ExecuteBlock(fFactory->fStaticInitBlock);
         }
         
-        virtual void instanceInit(int samplingRate)
+        virtual void instanceConstants(int samplingRate)
         {
-            // Execute init instructions
+            initSRFields(samplingRate);
+            
+            // Execute state init instructions
             this->ExecuteBlock(fFactory->fInitBlock);
         }
     
-        virtual void instanceDefaultUserInterface()
+        virtual void instanceResetUserInterface()
         {
-            // Execute default UI instructions
-            this->ExecuteBlock(fFactory->fDefaultUIBlock);
+            // Execute reset UI instructions
+            this->ExecuteBlock(fFactory->fResetUIBlock);
         }
 
         virtual void instanceClear()
@@ -747,15 +761,18 @@ class interpreter_dsp_aux : public interpreter_dsp_base, public FIRInterpreter<T
     
         virtual void init(int samplingRate)
         {
-            // Store samplingRate in specialization fIntMap
-            this->fIntMap[this->fSROffset] = samplingRate;
-            
-            // Store samplingRate in 'fSamplingFreq' variable at correct offset in fIntHeap
-            this->fIntHeap[this->fSROffset] = samplingRate;
+            initSRFields(samplingRate);
             
             this->classInit(samplingRate);
             this->instanceInit(samplingRate);
-            this->instanceDefaultUserInterface();
+        }
+    
+        virtual void instanceInit(int samplingRate)
+        {
+            initSRFields(samplingRate);
+            
+            this->instanceConstants(samplingRate);
+            this->instanceResetUserInterface();
             this->instanceClear();
         }
     
@@ -773,7 +790,7 @@ class interpreter_dsp_aux : public interpreter_dsp_base, public FIRInterpreter<T
             
             this->fStaticInitBlock = FIRInstructionOptimizer<T>::specialize2Heap(fFactory->fStaticInitBlock->copy(), fIntMap, fRealMap);
             this->fInitBlock = FIRInstructionOptimizer<T>::specialize2Heap(fFactory->fInitBlock->copy(), fIntMap, fRealMap);
-            this->fDefaultUIBlock = FIRInstructionOptimizer<T>::specialize2Heap(fFactory->fDefaultUIBlock->copy(), fIntMap, fRealMap);
+            this->fResetUIBlock = FIRInstructionOptimizer<T>::specialize2Heap(fFactory->fResetUIBlock->copy(), fIntMap, fRealMap);
             this->fClearBlock = FIRInstructionOptimizer<T>::specialize2Heap(fFactory->fClearBlock->copy(), fIntMap, fRealMap);
             
             // Suppress IOTA from fRealMap since we don't want specialization to use it
@@ -800,7 +817,7 @@ class interpreter_dsp_aux : public interpreter_dsp_base, public FIRInterpreter<T
             
             this->fStaticInitBlock->write(&std::cout);
             this->fInitBlock->write(&std::cout);
-            this->fDefaultUIBlock->write(&std::cout);
+            this->fResetUIBlock->write(&std::cout);
             this->fClearBlock->write(&std::cout);
             this->fComputeBlock->write(&std::cout);
             this->fComputeDSPBlock->write(&std::cout);
@@ -985,7 +1002,9 @@ class EXPORT interpreter_dsp : public dsp {
     
         void instanceInit(int samplingRate);
     
-        void instanceDefaultUserInterface();
+        void instanceConstants(int samplingRate);
+    
+        void instanceResetUserInterface();
     
         void instanceClear();
     

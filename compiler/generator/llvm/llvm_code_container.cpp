@@ -324,14 +324,14 @@ void LLVMCodeContainer::generateClassInitEnd()
     fBuilder->ClearInsertionPoint();
 }
 
-void LLVMCodeContainer::generateInstanceInitBegin(bool internal)
+void LLVMCodeContainer::generateInstanceInitBegin(const string& funname, bool internal)
 {
     VECTOR_OF_TYPES llvm_instanceInit_args;
     llvm_instanceInit_args.push_back(fStructDSP);
     llvm_instanceInit_args.push_back(fBuilder->getInt32Ty());
     FunctionType* llvm_instanceInit_type = FunctionType::get(fBuilder->getVoidTy(), MAKE_VECTOR_OF_TYPES(llvm_instanceInit_args), false);
 
-    Function* llvm_instanceInit = Function::Create(llvm_instanceInit_type, (internal) ? Function::InternalLinkage : Function::ExternalLinkage, "instanceInit" + fKlassName, fModule);
+    Function* llvm_instanceInit = Function::Create(llvm_instanceInit_type, (internal) ? Function::InternalLinkage : Function::ExternalLinkage, funname + fKlassName, fModule);
     llvm_instanceInit->setCallingConv(CallingConv::C);
 
     Function::arg_iterator llvm_instanceInit_args_it = llvm_instanceInit->arg_begin();
@@ -344,9 +344,9 @@ void LLVMCodeContainer::generateInstanceInitBegin(bool internal)
     fBuilder->SetInsertPoint(BasicBlock::Create(getContext(), "entry_block", llvm_instanceInit));
 }
 
-void LLVMCodeContainer::generateInstanceInitEnd()
+void LLVMCodeContainer::generateInstanceInitEnd(const string& funname)
 {
-    Function* llvm_instanceInit = fModule->getFunction("instanceInit" + fKlassName);
+    Function* llvm_instanceInit = fModule->getFunction(funname + fKlassName);
     assert(llvm_instanceInit);
     BasicBlock* return_block = BasicBlock::Create(getContext(), "return_block", llvm_instanceInit);
     ReturnInst::Create(getContext(), return_block);
@@ -395,30 +395,30 @@ void LLVMCodeContainer::generateInstanceClearEnd()
     fBuilder->ClearInsertionPoint();
 }
 
-void LLVMCodeContainer::generateInstanceDefaultUserInterfaceBegin(bool internal)
+void LLVMCodeContainer::generateInstanceResetUserInterfaceBegin(bool internal)
 {
-    VECTOR_OF_TYPES llvm_instanceDefaultUserInterface_args;
-    llvm_instanceDefaultUserInterface_args.push_back(fStructDSP);
-    FunctionType* llvm_instanceDefaultUserInterface_type = FunctionType::get(fBuilder->getVoidTy(), MAKE_VECTOR_OF_TYPES(llvm_instanceDefaultUserInterface_args), false);
+    VECTOR_OF_TYPES llvm_instanceResetUserInterface_args;
+    llvm_instanceResetUserInterface_args.push_back(fStructDSP);
+    FunctionType* llvm_instanceResetUserInterface_type = FunctionType::get(fBuilder->getVoidTy(), MAKE_VECTOR_OF_TYPES(llvm_instanceResetUserInterface_args), false);
     
-    Function* llvm_instanceDefaultUserInterface
-        = Function::Create(llvm_instanceDefaultUserInterface_type, (internal) ? Function::InternalLinkage : Function::ExternalLinkage,
-                           "instanceDefaultUserInterface" + fKlassName, fModule);
-    llvm_instanceDefaultUserInterface->setCallingConv(CallingConv::C);
+    Function* llvm_instanceResetUserInterface
+        = Function::Create(llvm_instanceResetUserInterface_type, (internal) ? Function::InternalLinkage : Function::ExternalLinkage,
+                           "instanceResetUserInterface" + fKlassName, fModule);
+    llvm_instanceResetUserInterface->setCallingConv(CallingConv::C);
     
-    Function::arg_iterator llvm_instanceDefaultUserInterface_args_it = llvm_instanceDefaultUserInterface->arg_begin();
-    Value* dsp = GET_ITERATOR(llvm_instanceDefaultUserInterface_args_it++);
+    Function::arg_iterator llvm_instanceResetUserInterface_args_it = llvm_instanceResetUserInterface->arg_begin();
+    Value* dsp = GET_ITERATOR(llvm_instanceResetUserInterface_args_it++);
     dsp->setName("dsp");
     
     // Add a first block
-    fBuilder->SetInsertPoint(BasicBlock::Create(getContext(), "entry_block", llvm_instanceDefaultUserInterface));
+    fBuilder->SetInsertPoint(BasicBlock::Create(getContext(), "entry_block", llvm_instanceResetUserInterface));
 }
 
-void LLVMCodeContainer::generateInstanceDefaultUserInterfaceEnd()
+void LLVMCodeContainer::generateInstanceResetUserInterfaceEnd()
 {
-    Function* llvm_instanceDefaultUserInterface = fModule->getFunction("instanceDefaultUserInterface" + fKlassName);
-    assert(llvm_instanceDefaultUserInterface);
-    BasicBlock* return_block = BasicBlock::Create(getContext(), "return_block", llvm_instanceDefaultUserInterface);
+    Function* llvm_instanceResetUserInterface = fModule->getFunction("instanceResetUserInterface" + fKlassName);
+    assert(llvm_instanceResetUserInterface);
+    BasicBlock* return_block = BasicBlock::Create(getContext(), "return_block", llvm_instanceResetUserInterface);
     ReturnInst::Create(getContext(), return_block);
     
     // If previous block branch from previous to current
@@ -426,8 +426,8 @@ void LLVMCodeContainer::generateInstanceDefaultUserInterfaceEnd()
         fBuilder->CreateBr(return_block);
     }
     
-    //llvm_instanceDefaultUserInterface->dump();
-    verifyFunction(*llvm_instanceDefaultUserInterface);
+    //llvm_instanceResetUserInterface->dump();
+    verifyFunction(*llvm_instanceResetUserInterface);
     fBuilder->ClearInsertionPoint();
 }
 
@@ -518,11 +518,12 @@ void LLVMCodeContainer::generateInitFun()
     CallInst* call_inst2 = CREATE_CALL1(llvm_instanceInit, params2, "", return_block2);
     call_inst2->setCallingConv(CallingConv::C);
     
+    /*
     vector<Value*> params3;
     params3.push_back(arg1);
-    Function* llvm_instanceDefaultUserInterface = fModule->getFunction("instanceDefaultUserInterface" + fKlassName);
-    assert(llvm_instanceDefaultUserInterface);
-    CallInst* call_inst3 = CREATE_CALL1(llvm_instanceDefaultUserInterface, params3, "", return_block2);
+    Function* llvm_instanceResetUserInterface = fModule->getFunction("instanceResetUserInterface" + fKlassName);
+    assert(llvm_instanceResetUserInterface);
+    CallInst* call_inst3 = CREATE_CALL1(llvm_instanceResetUserInterface, params3, "", return_block2);
     call_inst3->setCallingConv(CallingConv::C);
     
     vector<Value*> params4;
@@ -531,7 +532,57 @@ void LLVMCodeContainer::generateInitFun()
     assert(llvm_instanceClear);
     CallInst* call_inst4 = CREATE_CALL1(llvm_instanceClear, params4, "", return_block2);
     call_inst4->setCallingConv(CallingConv::C);
+     */
    
+    ReturnInst::Create(getContext(), return_block2);
+    verifyFunction(*llvm_init);
+    fBuilder->ClearInsertionPoint();
+}
+
+void LLVMCodeContainer::generateInstanceInitFun()
+{
+    VECTOR_OF_TYPES llvm_init_args;
+    llvm_init_args.push_back(fStructDSP);
+    llvm_init_args.push_back(fBuilder->getInt32Ty());
+    FunctionType* llvm_init_type = FunctionType::get(fBuilder->getVoidTy(), MAKE_VECTOR_OF_TYPES(llvm_init_args), false);
+    
+    Function* llvm_init = Function::Create(llvm_init_type, Function::ExternalLinkage, "instanceInit" + fKlassName, fModule);
+    llvm_init->setCallingConv(CallingConv::C);
+    
+    Function::arg_iterator llvm_init_args_it = llvm_init->arg_begin();
+    Value* arg1 = GET_ITERATOR(llvm_init_args_it++);
+    arg1->setName("dsp");
+    Value* arg2 = GET_ITERATOR(llvm_init_args_it++);
+    arg2->setName("samplingFreq");
+    
+    /// llvm_init block
+    BasicBlock* return_block2 = BasicBlock::Create(getContext(), "entry_block", llvm_init);
+    vector<Value*> params1;
+    params1.push_back(arg2);
+    
+    vector<Value*> params2;
+    params2.push_back(arg1);
+    params2.push_back(arg2);
+    
+    Function* llvm_instanceInit = fModule->getFunction("instanceConstants" + fKlassName);
+    assert(llvm_instanceInit);
+    CallInst* call_inst2 = CREATE_CALL1(llvm_instanceInit, params2, "", return_block2);
+    call_inst2->setCallingConv(CallingConv::C);
+    
+    vector<Value*> params3;
+    params3.push_back(arg1);
+    Function* llvm_instanceResetUserInterface = fModule->getFunction("instanceResetUserInterface" + fKlassName);
+    assert(llvm_instanceResetUserInterface);
+    CallInst* call_inst3 = CREATE_CALL1(llvm_instanceResetUserInterface, params3, "", return_block2);
+    call_inst3->setCallingConv(CallingConv::C);
+    
+    vector<Value*> params4;
+    params4.push_back(arg1);
+    Function* llvm_instanceClear = fModule->getFunction("instanceClear" + fKlassName);
+    assert(llvm_instanceClear);
+    CallInst* call_inst4 = CREATE_CALL1(llvm_instanceClear, params4, "", return_block2);
+    call_inst4->setCallingConv(CallingConv::C);
+    
     ReturnInst::Create(getContext(), return_block2);
     verifyFunction(*llvm_init);
     fBuilder->ClearInsertionPoint();
@@ -652,11 +703,11 @@ void LLVMCodeContainer::produceInternal()
     generateExtGlobalDeclarations(fCodeProducer);
     generateGlobalDeclarations(fCodeProducer);
 
-    generateInstanceInitBegin(true);
+    generateInstanceInitBegin("instanceInit", true);
     generateInit(fCodeProducer);
-    generateDefaultUserInterface(fCodeProducer);
+    generateResetUserInterface(fCodeProducer);
     generateClear(fCodeProducer);
-    generateInstanceInitEnd();
+    generateInstanceInitEnd("instanceInit");
 
     // Fill
     string counter = "count";
@@ -701,17 +752,17 @@ dsp_factory_base* LLVMCodeContainer::produceFactory()
     generateStaticInit(fCodeProducer);
     generateClassInitEnd();
     
-    generateInstanceDefaultUserInterfaceBegin();
-    generateDefaultUserInterface(fCodeProducer);
-    generateInstanceDefaultUserInterfaceEnd();
+    generateInstanceResetUserInterfaceBegin();
+    generateResetUserInterface(fCodeProducer);
+    generateInstanceResetUserInterfaceEnd();
 
     generateInstanceClearBegin();
     generateClear(fCodeProducer);
     generateInstanceClearEnd();
    
-    generateInstanceInitBegin();
+    generateInstanceInitBegin("instanceConstants");
     generateInit(fCodeProducer);
-    generateInstanceInitEnd();
+    generateInstanceInitEnd("instanceConstants");
     
     generateAllocateBegin();
     generateAllocate(fCodeProducer);
@@ -731,7 +782,9 @@ dsp_factory_base* LLVMCodeContainer::produceFactory()
     generateCompute();
 
     // Has to be done *after* generateInstanceInitBegin/generateInstanceInitEnd
+    generateInstanceInitFun();
     generateInitFun();
+   
     
     // Link LLVM modules defined in 'ffunction' 
     set<string> S;
