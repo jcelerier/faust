@@ -49,6 +49,9 @@ WaveReader gReader;
 #elif defined(MEMORY_READER)
 #include "faust/gui/MemoryReader.h"
 MemoryReader gReader;
+#elif defined(LIBAV_READER)
+#include "faust/gui/LibavReader.h"
+LibavReader gReader;
 #else
 #include "faust/gui/LibsndfileReader.h"
 LibsndfileReader gReader;
