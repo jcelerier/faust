@@ -492,22 +492,28 @@ DEPRECATED(void metadataDSPFactory(llvm_dsp_factory* factory, Meta* meta));
 
 /**
  * Create a Faust DSP instance.
- * 
+ *
  * @deprecated : use factory createDSPInstance method.
  * @param factory - the DSP factory
- * 
+ *
  * @return the DSP instance on success, otherwise a null pointer.
  */
 DEPRECATED(llvm_dsp* createDSPInstance(llvm_dsp_factory* factory));
 
 /**
- * Delete a Faust DSP instance. You can also simply use C++ 'delete'. 
- * 
+ * Delete a Faust DSP instance. You can also simply use C++ 'delete'.
+ *
  * @deprecated : simply use C++ delete.
  * @param dsp - the DSP instance to be deleted.
- */ 
+ */
 DEPRECATED(void deleteDSPInstance(llvm_dsp* dsp));
 
+/**
+ * Register a custom foreign function that will be exported by the host binary running the DSP code
+ *
+ * @param function_name - the function name to make available.
+ */
+LIBFAUST_API void registerCustomForeignFunction(const std::string& fuction_name);
 /*!
  @}
  */
