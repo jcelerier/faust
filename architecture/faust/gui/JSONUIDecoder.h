@@ -564,7 +564,7 @@ struct FAUST_API JSONUIDecoderReal : public JSONUIDecoderBase {
 
 // FAUSTFLOAT templated decoder
 
-struct FAUST_API JSONUIDecoder : public JSONUIDecoderReal<FAUSTFLOAT>
+struct JSONUIDecoder : public JSONUIDecoderReal<FAUSTFLOAT>
 {
     JSONUIDecoder(const std::string& json):JSONUIDecoderReal<FAUSTFLOAT>(json)
     {}
